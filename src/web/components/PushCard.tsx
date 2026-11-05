@@ -20,7 +20,9 @@ export function PushCard() {
   const [error, setError] = useState<string>()
 
   useEffect(() => {
-    void getPushStatus().then(setStatus)
+    getPushStatus()
+      .then(setStatus)
+      .catch(() => setStatus('unsupported'))
     // La clave se pide antes: en iOS, el permiso tiene que pedirse dentro del propio toque.
     api<{ publicKey: string }>('/push/public-key')
       .then((r) => setPublicKey(r.publicKey))
@@ -38,8 +40,9 @@ export function PushCard() {
     } catch (err) {
       setError(errorMessage(err))
     } finally {
-      setStatus(await getPushStatus())
+      // Primero se libera el botón: que el estado no pueda dejarlo colgado.
       setBusy(false)
+      setStatus(await getPushStatus().catch(() => undefined))
     }
   }
 

@@ -11,7 +11,7 @@
     "dev:api": "tsx watch src/server/index.ts",
     "dev:web": "vite",
     "build": "npm run build:web && npm run build:server",
-    "build:web": "vite build",
+    "build:web": "vite build && node scripts/check-sw.mjs",
     "build:server": "tsup",
     "start": "node dist/server/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.sw.json --noEmit",

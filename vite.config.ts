@@ -39,7 +39,10 @@ export default defineConfig({
         overrideManifestIcons: true,
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        // Sin `webmanifest`: el plugin ya añade el manifest al precache. Si también entra por el
+        // glob, aparece dos veces con revisiones distintas y Workbox aborta la instalación del SW
+        // (add-to-cache-list-conflicting-entries). Lo vigila scripts/check-sw.mjs.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
       },
       devOptions: { enabled: true, type: 'module' },
     }),

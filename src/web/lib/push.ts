@@ -30,9 +30,31 @@ export async function getPushStatus(): Promise<PushStatus> {
   if (!pushSupported()) return 'unsupported'
   if (Notification.permission === 'denied') return 'denied'
   if (Notification.permission === 'default') return 'default'
-  const reg = await navigator.serviceWorker.ready
-  const sub = await reg.pushManager.getSubscription()
+  // getRegistration() no se queda esperando como `ready` si el SW no llegó a instalarse.
+  const reg = await navigator.serviceWorker.getRegistration()
+  const sub = reg?.active ? await reg.pushManager.getSubscription() : null
   return sub ? 'subscribed' : 'granted-unsubscribed'
+}
+
+/**
+ * `navigator.serviceWorker.ready` no se resuelve nunca si el SW falla al instalarse.
+ * Con límite de tiempo, el usuario ve un error en lugar de un botón colgado.
+ */
+function readyRegistration(timeoutMs = 10_000): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'La app aún no está lista para recibir avisos. Ciérrala del todo, vuelve a abrirla e inténtalo de nuevo.',
+            ),
+          ),
+        timeoutMs,
+      ),
+    ),
+  ])
 }
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
@@ -53,7 +75,7 @@ export async function enablePush(publicKey: string): Promise<void> {
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('No has dado permiso para las notificaciones.')
 
-  const reg = await navigator.serviceWorker.ready
+  const reg = await readyRegistration()
   const sub =
     (await reg.pushManager.getSubscription()) ??
     (await reg.pushManager.subscribe({
