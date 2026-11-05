@@ -1,0 +1,40 @@
+# /etc/systemd/system/ayunora.service
+[Unit]
+Description=Ayunora (PWA de ayuno intermitente)
+After=network.target
+
+[Service]
+Type=simple
+User=ayunora
+Group=ayunora
+WorkingDirectory=/opt/ayunora/current
+EnvironmentFile=/etc/ayunora/env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3100
+Environment=DATABASE_PATH=/var/lib/ayunora/ayunora.db
+ExecStart=/usr/bin/node dist/server/index.js
+Restart=always
+RestartSec=3
+
+# El VPS va justo de RAM: si el proceso se desboca, systemd lo mata y lo reinicia.
+MemoryMax=200M
+
+# Crea /var/lib/ayunora con el dueño correcto. Es lo único escribible.
+StateDirectory=ayunora
+StateDirectoryMode=0750
+
+# Endurecimiento
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

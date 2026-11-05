@@ -1,0 +1,40 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #fff8f1;
+  --color-brand-100: #ffeede;
+  --color-brand-200: #ffd6b5;
+  --color-brand-300: #ffb36b;
+  --color-brand-500: #ef6f5a;
+  --color-brand-600: #d9553f;
+  --color-brand-700: #b23f2c;
+  --color-ink: #2b1d17;
+  --font-sans: ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-brand-50 text-ink antialiased;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    @apply bg-[#1c1411] text-brand-50;
+  }
+}
+
+/* Márgenes seguros para notch y barra de inicio de iOS. */
+.safe-area {
+  padding-top: max(env(safe-area-inset-top), 1rem);
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  padding-left: max(env(safe-area-inset-left), 1rem);
+  padding-right: max(env(safe-area-inset-right), 1rem);
+}
