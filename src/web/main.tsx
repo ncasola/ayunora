@@ -6,7 +6,22 @@ import { registerSW } from 'virtual:pwa-register'
 import { App } from './App'
 import './index.css'
 
-registerSW({ immediate: true })
+// autoUpdate: cuando hay una versión nueva del SW, se activa y la página se recarga sola.
+// El navegador solo busca actualizaciones al navegar, y una PWA de iOS que vuelve de
+// segundo plano no navega. Por eso se comprueba también al volver a primer plano y cada hora.
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, registration) {
+    if (!registration) return
+    const check = () => {
+      if (navigator.onLine) registration.update().catch(() => undefined)
+    }
+    setInterval(check, 60 * 60 * 1000)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') check()
+    })
+  },
+})
 
 const queryClient = new QueryClient({
   defaultOptions: {

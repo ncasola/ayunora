@@ -6,6 +6,7 @@ import { errorMessage } from './lib/api'
 import { useMe } from './lib/queries'
 import { LoginScreen, RegisterScreen } from './screens/Auth'
 import { ComingSoon } from './screens/ComingSoon'
+import { HistoryScreen } from './screens/History'
 import { SettingsScreen } from './screens/Settings'
 import { TimerScreen } from './screens/Timer'
 
@@ -37,16 +38,7 @@ export function App() {
         <InstallBanner />
         <Routes>
           <Route index element={<TimerScreen />} />
-          <Route
-            path="historial"
-            element={
-              <ComingSoon
-                title="Historial"
-                emoji="📅"
-                text="Aquí verás tus ayunos, tu racha y tus estadísticas."
-              />
-            }
-          />
+          <Route path="historial" element={<HistoryScreen />} />
           <Route
             path="peso"
             element={

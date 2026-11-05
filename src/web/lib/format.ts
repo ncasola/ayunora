@@ -65,3 +65,8 @@ export function fromDateTimeLocal(value: string): number {
 export function deviceTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
+
+/** Primera letra en mayúscula («lunes, 2 de noviembre» → «Lunes, 2 de noviembre»). CSS `capitalize` haría «De Noviembre». */
+export function capitalizeFirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}

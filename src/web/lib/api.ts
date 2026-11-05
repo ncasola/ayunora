@@ -42,7 +42,8 @@ const messages: Partial<Record<ApiError['code'], string>> = {
   email_taken: 'Ya existe una cuenta con ese email.',
   fast_already_active: 'Ya tienes un ayuno en curso.',
   fast_not_active: 'Ese ayuno ya había terminado.',
-  overlaps_previous: 'Esa hora es anterior al final de tu último ayuno.',
+  fast_overlap: 'Se solapa con otro ayuno que ya tienes registrado.',
+  fast_too_long: 'Un ayuno no puede durar más de 7 días.',
   invalid_time_range: 'Esa hora no es válida.',
   not_found: 'No se ha encontrado.',
 }

@@ -1,8 +1,17 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query'
 import type {
   ActiveFastDto,
   FastDto,
+  FastPageDto,
   LoginInput,
+  ManualFastInput,
+  StatsDto,
   MeDto,
   RegisterInput,
   SettingsDto,
@@ -17,6 +26,8 @@ import { api, ApiError } from './api'
 export const keys = {
   me: ['me'] as const,
   activeFast: ['fasts', 'active'] as const,
+  history: ['fasts', 'history'] as const,
+  stats: ['fasts', 'stats'] as const,
 }
 
 /** `null` = sin sesión. */
@@ -125,13 +136,21 @@ export function useStopFast() {
   return useMutation({
     mutationFn: ({ id, ...input }: StopFastInput & { id: number }) =>
       api<FastDto>(`/fasts/${id}/stop`, { method: 'POST', body: input }),
-    onSuccess: (fast) =>
+    onSuccess: (fast) => {
       qc.setQueryData<ActiveFastDto>(keys.activeFast, {
         active: null,
         lastEndedAt: fast.endedAt,
-      }),
+      })
+      invalidateHistory(qc)
+    },
     onError: () => qc.invalidateQueries({ queryKey: keys.activeFast }),
   })
+}
+
+/** El historial y las estadísticas dependen de cualquier cambio en los ayunos terminados. */
+function invalidateHistory(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: keys.history })
+  void qc.invalidateQueries({ queryKey: keys.stats })
 }
 
 export function useUpdateFast() {
@@ -139,9 +158,52 @@ export function useUpdateFast() {
   return useMutation({
     mutationFn: ({ id, ...input }: UpdateFastInput & { id: number }) =>
       api<FastDto>(`/fasts/${id}`, { method: 'PATCH', body: input }),
-    onSuccess: (fast) =>
+    onSuccess: (fast) => {
       qc.setQueryData<ActiveFastDto>(keys.activeFast, (prev) =>
         prev?.active?.id === fast.id ? { ...prev, active: fast } : prev,
-      ),
+      )
+      if (fast.endedAt) {
+        invalidateHistory(qc)
+        // Cambiar el fin del último ayuno cambia el «comiendo desde hace…».
+        void qc.invalidateQueries({ queryKey: keys.activeFast })
+      }
+    },
+  })
+}
+
+export function useFastHistory() {
+  return useInfiniteQuery({
+    queryKey: keys.history,
+    queryFn: ({ pageParam }) =>
+      api<FastPageDto>(`/fasts?limit=20${pageParam ? `&before=${pageParam}` : ''}`),
+    initialPageParam: null as number | null,
+    getNextPageParam: (last) => last.nextBefore,
+  })
+}
+
+export function useFastStats() {
+  return useQuery({ queryKey: keys.stats, queryFn: () => api<StatsDto>('/fasts/stats') })
+}
+
+export function useAddManualFast() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ManualFastInput) =>
+      api<FastDto>('/fasts/manual', { method: 'POST', body: input }),
+    onSuccess: () => {
+      invalidateHistory(qc)
+      void qc.invalidateQueries({ queryKey: keys.activeFast })
+    },
+  })
+}
+
+export function useDeleteFast() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api(`/fasts/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      invalidateHistory(qc)
+      void qc.invalidateQueries({ queryKey: keys.activeFast })
+    },
   })
 }

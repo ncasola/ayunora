@@ -105,15 +105,15 @@ Referencia funcional: [SPEC.md](./SPEC.md).
 
 ## M3 — Historial y estadísticas
 
-- [ ] API: listado paginado, `PATCH` completo, `DELETE` y alta manual, con validación de que no se solapan ayunos.
-- [ ] `src/shared/stats.ts`: racha actual y mejor racha (por día local de fin), medias de 7 y 30 días, porcentaje de objetivos cumplidos, totales y serie de los últimos 7 días. Tests con casos de zona horaria.
-- [ ] `GET /stats/summary`.
-- [ ] UI:
+- [x] API: listado paginado, `PATCH` completo, `DELETE` y alta manual, con validación de que no se solapan ayunos.
+- [x] `src/shared/stats.ts`: racha actual y mejor racha (por día local de fin), medias de 7 y 30 días, porcentaje de objetivos cumplidos, totales y serie de los últimos 7 días. Tests con casos de zona horaria.
+- [x] `GET /fasts/stats`.
+- [x] UI:
   - Tarjetas de estadísticas y gráfico semanal.
-  - Lista del historial con scroll infinito.
+  - Lista del historial paginada (botón «Ver más»).
   - Hoja de edición con selectores de fecha y hora nativos.
   - Borrado con confirmación.
-- [ ] Decidir la librería de gráficos (Recharts o SVG propio).
+- [x] Librería de gráficos: SVG propio (sin dependencia). Paleta validada con el validador de dataviz en claro y en oscuro.
 
 ## M4 — Peso
 

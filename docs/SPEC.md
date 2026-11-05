@@ -29,7 +29,7 @@ Hacer una PWA sencilla, instalable en el iPhone, para registrar ayunos intermite
 
 ## 3. Stack
 
-- **Frontend:** Vite + React + TypeScript, `vite-plugin-pwa` (injectManifest, con service worker propio para push), TanStack Query, React Router, Tailwind CSS. Gráficos con Recharts o SVG propio (por decidir según el peso del bundle).
+- **Frontend:** Vite + React + TypeScript, `vite-plugin-pwa` (injectManifest, con service worker propio para push), TanStack Query, React Router, Tailwind CSS. Gráficos en SVG propio, sin librería.
 - **Backend:** Hono sobre `@hono/node-server` (Node 24 LTS), Drizzle ORM con `better-sqlite3` en modo WAL, `web-push` (VAPID), `@node-rs/argon2` para las contraseñas y `zod` para validar, compartido con el cliente.
 - **Planificador:** un bucle dentro del mismo proceso que lee la tabla `notification_jobs` (ver §6). Sin Redis ni colas externas.
 - **Despliegue:** un único proceso Node que sirve la API (`/api/*`) y los estáticos de la SPA. Corre como servicio **systemd** en el VPS de IONOS, detrás del Nginx de WordOps y de Cloudflare.
@@ -187,7 +187,7 @@ PATCH  /fasts/:id            {startedAt?, endedAt?, goalMinutes?, note?}
 DELETE /fasts/:id
 GET    /fasts?before=&limit=     (paginación por cursor)
 
-GET    /stats/summary        → racha, mejor racha, medias, totales, últimos 7 días
+GET    /fasts/stats          → racha, mejor racha, medias, totales, últimos 7 días
 
 GET    /weights?from=&to=
 PUT    /weights/:day         {kg, note?}
@@ -239,4 +239,4 @@ Seguridad:
 
 1. ~~Dominio~~ → **ayunora.es** (resuelto 2026-11-05).
 2. ~~Nombre~~ → **Ayunora** (resuelto). Falta el icono definitivo.
-3. Gráficos: Recharts (más cómodo, unos 100 kB) o SVG propio (más ligero). Se decide en el M3.
+3. ~~Gráficos~~ → SVG propio (resuelto en el M3).

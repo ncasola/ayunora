@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { ActiveFastDto, FastDto, MeDto } from '../shared/api'
+import type { ActiveFastDto, FastDto, FastPageDto, MeDto, StatsDto } from '../shared/api'
 import type { Db } from './db'
-import { pushSubscriptions } from './db/schema'
+import { notificationJobs, pushSubscriptions } from './db/schema'
 import { fakeSender, H, INVITE, setup, T0 } from './testing'
 
 describe('salud y estáticos', () => {
@@ -205,7 +205,7 @@ describe('ayunos', () => {
     clock.now = T0 + 20 * H
     const res = await c.post('/fasts', { plan: '16:8', goalMinutes: 960, startedAt: T0 + 15 * H })
     expect(res.status).toBe(409)
-    expect(await res.json()).toEqual({ error: 'overlaps_previous' })
+    expect(await res.json()).toEqual({ error: 'fast_overlap' })
   })
 
   it('editar la hora de inicio del ayuno activo', async () => {
@@ -300,3 +300,134 @@ describe('push', () => {
 
 // Evita avisos de variable sin usar en algunos editores.
 export type { Db }
+
+describe('historial (M3)', () => {
+  const MIN = 60 * 1000
+  /** Crea un ayuno terminado a mano que acaba `endHoursAgo` antes de T0 y dura `hours`. */
+  const manual = (endHoursAgo: number, hours: number, extra: object = {}) => ({
+    startedAt: T0 - (endHoursAgo + hours) * H,
+    endedAt: T0 - endHoursAgo * H,
+    plan: '16:8',
+    goalMinutes: 960,
+    ...extra,
+  })
+
+  it('añadir a mano, listar con paginación y del más reciente al más antiguo', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    for (let i = 0; i < 5; i++) {
+      expect((await c.post('/fasts/manual', manual(i * 24 + 2, 16))).status).toBe(201)
+    }
+    const page1 = (await (await c.get('/fasts?limit=2')).json()) as FastPageDto
+    expect(page1.items).toHaveLength(2)
+    expect(page1.items[0]!.startedAt).toBeGreaterThan(page1.items[1]!.startedAt)
+    expect(page1.nextBefore).toBe(page1.items[1]!.startedAt)
+
+    const page2 = (await (
+      await c.get(`/fasts?limit=2&before=${page1.nextBefore}`)
+    ).json()) as FastPageDto
+    const page3 = (await (
+      await c.get(`/fasts?limit=2&before=${page2.nextBefore}`)
+    ).json()) as FastPageDto
+    expect(page3.items).toHaveLength(1)
+    expect(page3.nextBefore).toBeNull()
+    const ids = [...page1.items, ...page2.items, ...page3.items].map((f) => f.id)
+    expect(new Set(ids).size).toBe(5)
+  })
+
+  it('el historial no incluye el ayuno en curso', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    await c.post('/fasts/manual', manual(4, 16))
+    await c.post('/fasts', { plan: '16:8', goalMinutes: 960 })
+    const page = (await (await c.get('/fasts')).json()) as FastPageDto
+    expect(page.items).toHaveLength(1)
+    expect(page.items[0]!.endedAt).not.toBeNull()
+  })
+
+  it('no permite solapes al añadir ni al editar (tocarse sí)', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    const a = (await (await c.post('/fasts/manual', manual(30, 16))).json()) as FastDto
+    // Se solapa por la cola.
+    expect((await c.post('/fasts/manual', manual(20, 16))).status).toBe(409)
+    // Empieza justo cuando acaba el otro: válido.
+    const b = (await (
+      await c.post('/fasts/manual', {
+        startedAt: a.endedAt!,
+        endedAt: a.endedAt! + 4 * H,
+        plan: 'custom',
+        goalMinutes: 240,
+      })
+    ).json()) as FastDto
+    expect(b.id).toBeGreaterThan(a.id)
+    // Alargar el primero hasta pisar el segundo.
+    const res = await c.patch(`/fasts/${a.id}`, { endedAt: a.endedAt! + H })
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({ error: 'fast_overlap' })
+  })
+
+  it('valida rangos: fin anterior al inicio, futuro y más de 7 días', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    expect((await c.post('/fasts/manual', { ...manual(2, 16), endedAt: T0 - 30 * H })).status).toBe(
+      400,
+    )
+    expect((await c.post('/fasts/manual', { ...manual(0, 16), endedAt: T0 + H })).status).toBe(400)
+    const tooLong = await c.post('/fasts/manual', manual(1, 8 * 24))
+    expect(await tooLong.json()).toEqual({ error: 'fast_too_long' })
+  })
+
+  it('editar inicio, fin, objetivo y nota de un ayuno terminado', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    const f = (await (await c.post('/fasts/manual', manual(5, 16))).json()) as FastDto
+    const res = await c.patch(`/fasts/${f.id}`, {
+      startedAt: f.startedAt - 30 * MIN,
+      endedAt: f.endedAt! + 30 * MIN,
+      plan: '18:6',
+      goalMinutes: 1080,
+      note: '  Me costó al final  ',
+    })
+    expect(await res.json()).toMatchObject({
+      startedAt: f.startedAt - 30 * MIN,
+      endedAt: f.endedAt! + 30 * MIN,
+      plan: '18:6',
+      goalMinutes: 1080,
+      note: 'Me costó al final',
+    })
+    // Nota vacía = sin nota.
+    expect(
+      ((await (await c.patch(`/fasts/${f.id}`, { note: '   ' })).json()) as FastDto).note,
+    ).toBeNull()
+  })
+
+  it('al ayuno en curso no se le puede poner fin por PATCH', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    const f = (await (await c.post('/fasts', { plan: '16:8', goalMinutes: 960 })).json()) as FastDto
+    expect((await c.patch(`/fasts/${f.id}`, { endedAt: T0 + 1000 })).status).toBe(409)
+  })
+
+  it('borrar un ayuno (también el activo, con sus avisos)', async () => {
+    const { registered, db } = setup()
+    const c = await registered()
+    const f = (await (await c.post('/fasts', { plan: '16:8', goalMinutes: 960 })).json()) as FastDto
+    expect(db.select().from(notificationJobs).all().length).toBeGreaterThan(0)
+    expect((await c.call('DELETE', `/fasts/${f.id}`)).status).toBe(200)
+    expect(((await (await c.get('/fasts/active')).json()) as ActiveFastDto).active).toBeNull()
+    expect(db.select().from(notificationJobs).all()).toHaveLength(0)
+    expect((await c.call('DELETE', `/fasts/${f.id}`)).status).toBe(404)
+  })
+
+  it('estadísticas del usuario', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    await c.post('/fasts/manual', manual(1, 16))
+    await c.post('/fasts/manual', manual(25, 17))
+    await c.post('/fasts/manual', manual(49, 10))
+    const s = (await (await c.get('/fasts/stats')).json()) as StatsDto
+    expect(s).toMatchObject({ totalFasts: 3, currentStreak: 2, bestStreak: 2, goalRate30: 67 })
+    expect(s.last7Days).toHaveLength(7)
+  })
+})
