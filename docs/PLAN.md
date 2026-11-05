@@ -15,7 +15,7 @@ Referencia funcional: [SPEC.md](./SPEC.md).
 | **M2** | Notificaciones programadas y ajustes                | 2–3 sesiones       | Avisos de fin, aviso previo, hitos y recordatorio diario |
 | **M3** | Historial, edición y estadísticas                   | 2–3 sesiones       | Lista, edición, racha y gráfico semanal                  |
 | **M4** | Peso                                                | 1–2 sesiones       | Registro y gráfico de peso                               |
-| **M5** | Pulido, onboarding y backups; lanzamiento | 2 sesiones         | **MVP en uso real**                                      |
+| **M5** | Pulido, onboarding y backups; lanzamiento           | 2 sesiones         | **MVP en uso real**                                      |
 | v2     | Mejoras tras usarla 2–3 semanas                     | —                  | Ver la lista al final                                    |
 
 \* Una sesión equivale a unas 2–3 h de trabajo con Claude Code.
