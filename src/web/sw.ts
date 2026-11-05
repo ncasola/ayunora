@@ -5,7 +5,9 @@ import {
   createHandlerBoundToURL,
   precacheAndRoute,
 } from 'workbox-precaching'
+import { ExpirationPlugin } from 'workbox-expiration'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
+import { NetworkFirst } from 'workbox-strategies'
 import type { PushPayload } from '../shared/push'
 
 declare const self: ServiceWorkerGlobalScope
@@ -23,6 +25,22 @@ registerRoute(
   new NavigationRoute(createHandlerBoundToURL('index.html'), {
     allowlist: import.meta.env.DEV ? [/^\/$/] : undefined,
     denylist: [/^\/api\//],
+  }),
+)
+
+// API: red primero y, si no hay conexión, la última respuesta guardada. Así el temporizador
+// se ve aunque no haya red, porque se calcula en local a partir de `startedAt`.
+// Solo se cachean respuestas 200. La caché se borra al cerrar sesión (ver useLogout).
+registerRoute(
+  ({ url, request }) =>
+    request.method === 'GET' &&
+    url.origin === self.location.origin &&
+    url.pathname.startsWith('/api/') &&
+    url.pathname !== '/api/health',
+  new NetworkFirst({
+    cacheName: 'api',
+    networkTimeoutSeconds: 4,
+    plugins: [new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 7 * 24 * 60 * 60 })],
   }),
 )
 

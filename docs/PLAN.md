@@ -34,7 +34,7 @@ Referencia funcional: [SPEC.md](./SPEC.md).
   - `start`.
 - [x] Drizzle + better-sqlite3 (WAL, `foreign_keys=ON`), `drizzle-kit generate` y migraciones aplicadas al arrancar.
 - [x] `vite-plugin-pwa` en modo `injectManifest`: manifest, iconos provisionales y un SW con handler de `push` y de `notificationclick`.
-- [x] Endpoints mínimos: `GET /api/health`, `GET /api/push/public-key`, `POST /api/push/subscriptions` y `POST /api/push/test` (en el M0 sin auth, protegido por un token temporal).
+- [x] Endpoints mínimos: `GET /api/health`, `GET /api/push/public-key`, `POST /api/push/subscriptions` y `POST /api/push/test` (en el M0, protegidos por un token temporal; desde el M1, por sesión).
 - [x] Página mínima con el botón «Activar notificaciones» y el botón «Probar».
 - [x] Generar las claves VAPID (`npx web-push generate-vapid-keys`): solo las de desarrollo. Las de producción se generan en el VPS.
 
@@ -70,20 +70,20 @@ Referencia funcional: [SPEC.md](./SPEC.md).
 
 ## M1 — Cuentas y temporizador
 
-- [ ] Esquema y migración: `users`, `sessions`, `settings` y `fasts` (con el índice único parcial del ayuno activo).
-- [ ] Auth:
+- [x] Esquema y migración: `users`, `sessions`, `settings` y `fasts` (con el índice único parcial del ayuno activo).
+- [x] Auth:
   - Registro con `INVITE_CODE`, login y logout.
   - Middleware de sesión (cookie de 1 año que se renueva con el uso; token hasheado en la BD).
   - Límite de intentos de login y comprobación de `Origin`.
-- [ ] `src/shared/plans.ts` y `src/shared/phases.ts`, con sus tests.
-- [ ] API de ayunos: `active`, `start`, `stop` y `PATCH` de la hora de inicio.
-- [ ] UI:
+- [x] `src/shared/plans.ts` y `src/shared/phases.ts`, con sus tests.
+- [x] API de ayunos: `active`, `start`, `stop` y `PATCH` de la hora de inicio.
+- [x] UI:
   - Login y registro.
   - Layout con la tab bar y las _safe areas_.
   - Pantalla del temporizador: anillo SVG, fase actual y siguiente, «Empecé antes…», terminar con confirmación y resumen al terminar.
-- [ ] El temporizador se calcula desde `started_at`, con un tick de 1 s y refresco en `visibilitychange`.
-- [ ] Ajustes mínimos: plan por defecto y zona horaria.
-- [ ] Quitar la protección temporal del M0: el push queda ya ligado al usuario.
+- [x] El temporizador se calcula desde `started_at`, con un tick de 1 s y refresco en `visibilitychange`.
+- [x] Ajustes mínimos: plan por defecto y zona horaria.
+- [x] Quitar la protección temporal del M0: el push queda ya ligado al usuario.
 
 **Cierre:** registrarse, empezar un ayuno de 16:8, cerrar la app y reabrirla horas después con el progreso correcto.
 

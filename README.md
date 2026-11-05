@@ -26,7 +26,7 @@ scripts      deploy.sh
 
 ```bash
 npm install
-cp .env.example .env      # rellena las claves VAPID (npm run vapid) y SETUP_TOKEN
+cp .env.example .env      # rellena las claves VAPID (npm run vapid) e INVITE_CODE
 npm run dev               # API en :3100 y Vite en :5173 (con proxy de /api)
 ```
 

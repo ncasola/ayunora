@@ -40,7 +40,7 @@ iPhone ──HTTPS──> Cloudflare (proxy, Full strict) ──HTTPS──> Ngi
 
 ### Fase B — Secretos y servicio
 
-1. Crear `/etc/ayunora/env` con permisos `600` y dueño root. El fichero lleva `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=https://ayunora.es` y `SETUP_TOKEN`.
+1. Crear `/etc/ayunora/env` con permisos `600` y dueño root. El fichero lleva `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=https://ayunora.es` e `INVITE_CODE` (el código que hay que dar para registrarse).
    - Claves VAPID **nuevas**, generadas para producción con `npx web-push generate-vapid-keys`.
    - Ojo: si se cambian las claves VAPID, todas las suscripciones dejan de valer.
 2. Copiar `deploy/ayunora.service` a `/etc/systemd/system/` y ejecutar `sudo systemctl daemon-reload && sudo systemctl enable ayunora`.

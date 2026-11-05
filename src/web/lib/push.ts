@@ -1,4 +1,5 @@
 import type { PushSubscriptionInput } from '../../shared/push'
+import { api } from './api'
 
 export type PushStatus =
   | 'unsupported' // navegador sin Push API (p. ej. Safari iOS sin instalar la app)
@@ -43,21 +44,28 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Pide permiso y suscribe el dispositivo. Hay que llamarla directamente desde un toque
- * del usuario: iOS solo muestra el diálogo de permiso dentro de un gesto, así que
- * `requestPermission` va antes de cualquier otro `await`.
+ * Pide permiso, suscribe el dispositivo y lo registra en el servidor. Hay que llamarla
+ * directamente desde un toque del usuario: iOS solo muestra el diálogo de permiso dentro
+ * de un gesto, así que `requestPermission` va antes de cualquier otro `await`.
+ * La clave pública se pide antes, al montar la pantalla.
  */
-export async function subscribeToPush(publicKey: string): Promise<PushSubscriptionInput> {
+export async function enablePush(publicKey: string): Promise<void> {
   const permission = await Notification.requestPermission()
-  if (permission !== 'granted') throw new Error('Permiso de notificaciones denegado')
+  if (permission !== 'granted') throw new Error('No has dado permiso para las notificaciones.')
 
   const reg = await navigator.serviceWorker.ready
-  const existing = await reg.pushManager.getSubscription()
   const sub =
-    existing ??
+    (await reg.pushManager.getSubscription()) ??
     (await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey),
     }))
-  return sub.toJSON() as PushSubscriptionInput
+  await api('/push/subscriptions', {
+    method: 'POST',
+    body: sub.toJSON() as PushSubscriptionInput,
+  })
+}
+
+export async function sendTestPush() {
+  return api<{ sent: number; removed: number; failed: number }>('/push/test', { method: 'POST' })
 }

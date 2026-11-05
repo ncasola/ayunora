@@ -13,10 +13,13 @@ const envSchema = z.object({
     .string()
     .regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT debe empezar por mailto: o https://')
     .default('https://ayunora.es'),
-  SETUP_TOKEN: z.string().min(16, 'SETUP_TOKEN debe tener al menos 16 caracteres'),
+  /** Código que hay que dar al registrarse: solo quien lo conoce puede crear cuenta. */
+  INVITE_CODE: z.string().min(6, 'INVITE_CODE debe tener al menos 6 caracteres'),
+  /** Cookies con `Secure`. Por defecto, solo en producción. */
+  COOKIE_SECURE: z.enum(['true', 'false']).optional(),
 })
 
-export type Env = z.infer<typeof envSchema>
+export type Env = z.infer<typeof envSchema> & { cookieSecure: boolean }
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.safeParse(source)
@@ -24,5 +27,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     const problems = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`)
     throw new Error(`Configuración inválida:\n${problems.join('\n')}`)
   }
-  return parsed.data
+  const env = parsed.data
+  const cookieSecure = env.COOKIE_SECURE
+    ? env.COOKIE_SECURE === 'true'
+    : env.NODE_ENV === 'production'
+  return { ...env, cookieSecure }
 }
