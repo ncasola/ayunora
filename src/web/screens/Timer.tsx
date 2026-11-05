@@ -327,6 +327,9 @@ function PhaseCard({ state }: { state: PhaseState }) {
           {formatDuration(ceilToMinute(msToNext))}
         </p>
       )}
+      <p className="text-[11px] text-ink/45 dark:text-brand-50/45">
+        Información orientativa: cada cuerpo es distinto y no sustituye al consejo médico.
+      </p>
     </Card>
   )
 }

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { InstallBanner } from './components/InstallBanner'
+import { OfflineBanner } from './components/OfflineBanner'
 import { TabBar } from './components/TabBar'
 import { Button } from './components/ui'
 import { errorMessage } from './lib/api'
@@ -9,6 +10,7 @@ import { HistoryScreen } from './screens/History'
 import { SettingsScreen } from './screens/Settings'
 import { TimerScreen } from './screens/Timer'
 import { WeightScreen } from './screens/Weight'
+import { WelcomeScreen } from './screens/Welcome'
 
 export function App() {
   const me = useMe()
@@ -35,12 +37,18 @@ export function App() {
   return (
     <>
       <main className="safe-area mx-auto flex max-w-md flex-col gap-5 pb-[calc(env(safe-area-inset-bottom)+5.5rem)]!">
+        <OfflineBanner />
         <InstallBanner />
         <Routes>
           <Route index element={<TimerScreen />} />
           <Route path="historial" element={<HistoryScreen />} />
           <Route path="peso" element={<WeightScreen />} />
           <Route path="ajustes" element={<SettingsScreen />} />
+          <Route path="bienvenida" element={<WelcomeScreen />} />
+          {/* Recién registrada, la URL sigue en /registro: de ahí pasa a la bienvenida.
+              No se hace desde el onSuccess del formulario porque al iniciarse la sesión el
+              formulario se desmonta y ese callback ya no se llama. */}
+          <Route path="registro" element={<Navigate to="/bienvenida" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

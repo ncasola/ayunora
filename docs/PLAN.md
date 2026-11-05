@@ -126,10 +126,10 @@ Referencia funcional: [SPEC.md](./SPEC.md).
 
 ## M5 — Pulido y lanzamiento
 
-- [ ] Onboarding: guía de instalación en Safari, plan, permiso de push y recordatorio.
-- [ ] Nombre, icono definitivo e iconos de todos los tamaños, más `apple-touch-icon`. Splash opcional.
-- [ ] Modo oscuro, estados vacíos, errores de red y aviso de «Sin conexión».
-- [ ] Aviso legal breve: las fases son informativas y no son consejo médico.
+- [x] Onboarding: guía de instalación en Safari (banner en todas las pantallas) y pantalla de bienvenida tras registrarse con plan, permiso de push y avisos.
+- [x] Nombre (Ayunora), icono (amanecer en anillo) e iconos de todos los tamaños generados desde un SVG, más `apple-touch-icon`. Splash de iOS: no (opcional).
+- [x] Modo oscuro, estados vacíos, errores de red, aviso de «Sin conexión» y pantalla de error con «Recargar» si algo revienta.
+- [x] Aviso legal breve en la tarjeta de fase y en Ajustes: información orientativa, no es consejo médico.
 - [ ] **Backups:**
   - Volcado con `sqlite3 /var/lib/ayunora/ayunora.db ".backup …"` (o la API de backup de better-sqlite3) en `/var/backups/ayunora/` antes del restic diario.
   - Añadir esa ruta a `backup.sh`.
