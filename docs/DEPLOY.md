@@ -1,6 +1,6 @@
 # Despliegue en el VPS de IONOS
 
-El servidor se gestiona desde `infra-vps (repo privado)`. Sus reglas aplican aquí:
+El servidor se gestiona desde un repo privado de infraestructura (`infra-vps`). Sus reglas aplican aquí:
 
 - Se trabaja por fases y se pide confirmación entre una y otra.
 - Antes de recargar Nginx, siempre `nginx -t`.

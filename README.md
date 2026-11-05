@@ -1,6 +1,12 @@
 # Ayunora
 
-PWA de ayuno intermitente, instalable en iPhone, con avisos por Web Push. En producción en **https://ayunora.es**.
+PWA de ayuno intermitente, instalable en iPhone, con avisos por Web Push. La hice para usarla en casa, y está en producción en **https://ayunora.es** (el registro requiere código de invitación).
+
+<p align="center">
+  <img src="docs/screenshots/ayuno.png" alt="Temporizador de ayuno con anillo de progreso y fase actual" width="250">
+  <img src="docs/screenshots/historial.png" alt="Historial con racha, estadísticas y gráfico semanal" width="250">
+  <img src="docs/screenshots/peso.png" alt="Registro de peso con gráfico de evolución" width="250">
+</p>
 
 - Especificación: [docs/SPEC.md](docs/SPEC.md)
 - Plan y roadmap: [docs/PLAN.md](docs/PLAN.md)
@@ -64,3 +70,7 @@ npm run dev               # API en :3100 y Vite en :5173 (con proxy de /api)
 - **`scripts/check-sw.mjs` comprueba en cada build que el precache del service worker no tenga entradas duplicadas.** Ya pasó una vez con el manifest: el service worker no se instalaba y el botón de activar notificaciones se quedaba colgado.
 - **Las versiones nuevas llegan solas:** la app busca actualizaciones al volver a primer plano y cada hora, y se recarga cuando hay una.
 - **Para probar el push en local**, Chrome y Edge permiten Web Push sobre `localhost`.
+
+## Licencia
+
+[MIT](LICENSE). La funcionalidad está inspirada en las apps de ayuno intermitente del mercado, pero no tiene relación con ninguna: nombre, textos, icono y diseño son propios.

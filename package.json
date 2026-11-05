@@ -1,6 +1,14 @@
 {
   "name": "ayunora",
   "version": "0.1.0",
+  "description": "PWA de ayuno intermitente con avisos push en iPhone",
+  "license": "MIT",
+  "author": "Néstor Casola Jiménez (https://ncasolajimenez.es)",
+  "homepage": "https://ayunora.es",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ncasola/ayunora.git"
+  },
   "private": true,
   "type": "module",
   "engines": {
