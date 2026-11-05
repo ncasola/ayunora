@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { GOAL_LIMITS, isValidGoalMinutes, PLAN_IDS, type PlanId } from './plans'
+import { PRE_END_OPTIONS, type PreEndMinutes } from './schedule'
 
 // Contrato de la API compartido por cliente y servidor.
 // Todas las fechas viajan como milisegundos UTC (number).
@@ -51,6 +52,12 @@ export const updateSettingsSchema = z
   .object({
     defaultPlan: planIdSchema,
     customGoalMinutes: goalMinutes,
+    notifyGoal: z.boolean(),
+    notifyPreEnd: z.boolean(),
+    preEndMinutes: z.union(PRE_END_OPTIONS.map((n) => z.literal(n))),
+    notifyMilestones: z.boolean(),
+    reminderEnabled: z.boolean(),
+    reminderTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora no válida (HH:MM)'),
   })
   .partial()
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>
@@ -82,6 +89,13 @@ export type UserDto = { id: number; email: string; name: string; timezone: strin
 export type SettingsDto = {
   defaultPlan: PlanId
   customGoalMinutes: number
+  notifyGoal: boolean
+  notifyPreEnd: boolean
+  preEndMinutes: PreEndMinutes
+  notifyMilestones: boolean
+  reminderEnabled: boolean
+  /** Hora local 'HH:MM' del recordatorio diario. */
+  reminderTime: string
 }
 
 export type MeDto = { user: UserDto; settings: SettingsDto }

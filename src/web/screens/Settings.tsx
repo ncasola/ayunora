@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { NotificationSettings } from '../components/NotificationSettings'
 import { PlanPicker, type PlanChoice } from '../components/PlanPicker'
 import { PushCard } from '../components/PushCard'
 import { Button, Card, ErrorText, Field } from '../components/ui'
@@ -78,6 +79,7 @@ export function SettingsScreen() {
       </Card>
 
       <PushCard />
+      <NotificationSettings />
 
       <Button variant="secondary" onClick={() => logout.mutate()} busy={logout.isPending}>
         Cerrar sesión

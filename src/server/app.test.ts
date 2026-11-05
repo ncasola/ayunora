@@ -1,88 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ActiveFastDto, FastDto, MeDto } from '../shared/api'
-import { createApp } from './app'
-import { openDb, type Db } from './db'
+import type { Db } from './db'
 import { pushSubscriptions } from './db/schema'
-import type { PushSender, PushTarget, SendResult } from './push'
-
-const H = 60 * 60 * 1000
-const INVITE = 'invita-123'
-const T0 = Date.UTC(2026, 10, 5, 20, 0) // 5 nov 2026, 20:00 UTC
-
-function fakeSender(results: Record<string, SendResult> = {}) {
-  const sent: PushTarget[] = []
-  const sender: PushSender = {
-    async send(target) {
-      sent.push(target)
-      return results[target.endpoint] ?? { ok: true }
-    },
-  }
-  return { sender, sent }
-}
-
-function setup(sender: PushSender = fakeSender().sender) {
-  const db = openDb(':memory:', './drizzle')
-  const clock = { now: T0 }
-  const app = createApp({
-    db,
-    push: sender,
-    config: {
-      devLogging: false,
-      secureCookies: false,
-      vapidPublicKey: 'pub-key',
-      inviteCode: INVITE,
-      webDist: './dist/web',
-    },
-    now: () => clock.now,
-  })
-
-  /** Cliente mínimo que conserva la cookie de sesión, como haría el navegador. */
-  function client() {
-    let cookie = ''
-    async function call(
-      method: string,
-      path: string,
-      body?: unknown,
-      headers: Record<string, string> = {},
-    ) {
-      const res = await app.request(`http://ayunora.test/api${path}`, {
-        method,
-        headers: {
-          host: 'ayunora.test',
-          ...(body !== undefined && { 'content-type': 'application/json' }),
-          ...(cookie && { cookie }),
-          ...headers,
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      })
-      const setCookie = res.headers.get('set-cookie')
-      if (setCookie) cookie = setCookie.split(';')[0]!.endsWith('=') ? '' : setCookie.split(';')[0]!
-      return res
-    }
-    return {
-      call,
-      get: (p: string) => call('GET', p),
-      post: (p: string, b?: unknown) => call('POST', p, b ?? {}),
-      patch: (p: string, b: unknown) => call('PATCH', p, b),
-      cookie: () => cookie,
-    }
-  }
-
-  async function registered(email = 'ella@ejemplo.es') {
-    const c = client()
-    const res = await c.post('/auth/register', {
-      email,
-      password: 'contraseña-segura',
-      name: 'Ella',
-      inviteCode: INVITE,
-      timezone: 'Atlantic/Canary',
-    })
-    expect(res.status).toBe(201)
-    return c
-  }
-
-  return { db, app, clock, client, registered }
-}
+import { fakeSender, H, INVITE, setup, T0 } from './testing'
 
 describe('salud y estáticos', () => {
   it('health responde sin sesión', async () => {
@@ -110,7 +30,11 @@ describe('autenticación', () => {
       name: 'Ella',
       timezone: 'Atlantic/Canary',
     })
-    expect(me.settings).toEqual({ defaultPlan: '16:8', customGoalMinutes: 960 })
+    expect(me.settings).toMatchObject({
+      defaultPlan: '16:8',
+      customGoalMinutes: 960,
+      reminderEnabled: false,
+    })
   })
 
   it('registro: exige el código de invitación correcto', async () => {
@@ -217,7 +141,7 @@ describe('perfil y ajustes', () => {
     const s = await (
       await c.patch('/settings', { defaultPlan: 'custom', customGoalMinutes: 14 * 60 + 30 })
     ).json()
-    expect(s).toEqual({ defaultPlan: 'custom', customGoalMinutes: 870 })
+    expect(s).toMatchObject({ defaultPlan: 'custom', customGoalMinutes: 870 })
 
     expect((await c.patch('/settings', { customGoalMinutes: 50 })).status).toBe(400)
     expect((await c.patch('/me', { timezone: 'Nada/Nada' })).status).toBe(400)

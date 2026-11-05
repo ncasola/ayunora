@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull, lt, ne } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, lt, ne } from 'drizzle-orm'
 import { Hono, type Context } from 'hono'
 import {
   startFastSchema,
@@ -11,6 +11,8 @@ import { apiError, readJson, requireAuth, type AppEnv } from '../context'
 import type { Db } from '../db'
 import { fasts, type FastRow } from '../db/schema'
 import { isUniqueViolation, type AppDeps } from '../deps'
+import { findActiveFast } from '../repo'
+import { cancelFastJobs, scheduleFastJobs } from '../scheduler'
 
 /** Margen por desajustes de reloj entre el móvil y el servidor. */
 const CLOCK_SKEW_MS = 60 * 1000
@@ -26,14 +28,6 @@ export function toFastDto(f: FastRow): FastDto {
     plan: f.plan,
     note: f.note,
   }
-}
-
-function activeFast(db: Db, userId: number) {
-  return db
-    .select()
-    .from(fasts)
-    .where(and(eq(fasts.userId, userId), isNull(fasts.endedAt)))
-    .get()
 }
 
 /** Fin del último ayuno terminado, opcionalmente excluyendo uno y solo antes de cierta fecha. */
@@ -75,7 +69,7 @@ export function fastRoutes({ db, now }: AppDeps) {
 
     .get('/active', (c) => {
       const userId = c.get('user')!.id
-      const active = activeFast(db, userId)
+      const active = findActiveFast(db, userId)
       const dto: ActiveFastDto = {
         active: active ? toFastDto(active) : null,
         lastEndedAt: lastEndedAt(db, userId),
@@ -89,7 +83,7 @@ export function fastRoutes({ db, now }: AppDeps) {
       const userId = c.get('user')!.id
       const t = now()
 
-      if (activeFast(db, userId)) return apiError(c, 409, 'fast_already_active')
+      if (findActiveFast(db, userId)) return apiError(c, 409, 'fast_already_active')
 
       const startedAt = body.data.startedAt ?? t
       if (startedAt > t + CLOCK_SKEW_MS || startedAt < t - MAX_BACKDATE_MS) {
@@ -111,6 +105,7 @@ export function fastRoutes({ db, now }: AppDeps) {
           })
           .returning()
           .get()
+        scheduleFastJobs(db, row, t)
         return c.json(toFastDto(row), 201)
       } catch (err) {
         // Dos peticiones simultáneas: el índice único parcial frena la segunda.
@@ -137,6 +132,7 @@ export function fastRoutes({ db, now }: AppDeps) {
         .where(eq(fasts.id, fast.id))
         .returning()
         .get()!
+      cancelFastJobs(db, fast.id)
       return c.json(toFastDto(row))
     })
 
@@ -172,6 +168,10 @@ export function fastRoutes({ db, now }: AppDeps) {
         .where(eq(fasts.id, fast.id))
         .returning()
         .get()!
+      // Cambiar el inicio o el objetivo mueve todos los avisos del ayuno.
+      if (!row.endedAt && (startedAt !== undefined || goalMinutes !== undefined)) {
+        scheduleFastJobs(db, row, t)
+      }
       return c.json(toFastDto(row))
     })
 }

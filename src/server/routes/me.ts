@@ -10,15 +10,20 @@ import { readJson, requireAuth, type AppEnv } from '../context'
 import type { Db } from '../db'
 import { settings, users, type SettingsRow, type UserRow } from '../db/schema'
 import type { AppDeps } from '../deps'
-
-export function getSettings(db: Db, userId: number): SettingsRow {
-  const row = db.select().from(settings).where(eq(settings.userId, userId)).get()
-  if (row) return row
-  return db.insert(settings).values({ userId }).returning().get()
-}
+import { getSettings } from '../repo'
+import { rescheduleUser, scheduleDailyReminder } from '../scheduler'
 
 export function toSettingsDto(row: SettingsRow): SettingsDto {
-  return { defaultPlan: row.defaultPlan, customGoalMinutes: row.customGoalMinutes }
+  return {
+    defaultPlan: row.defaultPlan,
+    customGoalMinutes: row.customGoalMinutes,
+    notifyGoal: row.notifyGoal,
+    notifyPreEnd: row.notifyPreEnd,
+    preEndMinutes: row.preEndMinutes,
+    notifyMilestones: row.notifyMilestones,
+    reminderEnabled: row.reminderEnabled,
+    reminderTime: row.reminderTime,
+  }
 }
 
 export function toMeDto(db: Db, user: UserRow): MeDto {
@@ -28,7 +33,17 @@ export function toMeDto(db: Db, user: UserRow): MeDto {
   }
 }
 
-export function meRoutes({ db }: AppDeps) {
+/** Ajustes que afectan a los avisos ya programados. */
+const NOTIFICATION_KEYS = [
+  'notifyGoal',
+  'notifyPreEnd',
+  'preEndMinutes',
+  'notifyMilestones',
+  'reminderEnabled',
+  'reminderTime',
+] as const
+
+export function meRoutes({ db, now }: AppDeps) {
   return new Hono<AppEnv>()
     .use('*', requireAuth)
     .get('/', (c) => c.json(toMeDto(db, c.get('user')!)))
@@ -40,11 +55,15 @@ export function meRoutes({ db }: AppDeps) {
         Object.keys(body.data).length > 0
           ? db.update(users).set(body.data).where(eq(users.id, user.id)).returning().get()!
           : user
+      // El recordatorio diario va en hora local: si cambia la zona, se recalcula.
+      if (body.data.timezone && body.data.timezone !== user.timezone) {
+        scheduleDailyReminder(db, user.id, now())
+      }
       return c.json(toMeDto(db, updated))
     })
 }
 
-export function settingsRoutes({ db }: AppDeps) {
+export function settingsRoutes({ db, now }: AppDeps) {
   return new Hono<AppEnv>()
     .use('*', requireAuth)
     .get('/', (c) => c.json(toSettingsDto(getSettings(db, c.get('user')!.id))))
@@ -56,6 +75,7 @@ export function settingsRoutes({ db }: AppDeps) {
       if (Object.keys(body.data).length > 0) {
         db.update(settings).set(body.data).where(eq(settings.userId, userId)).run()
       }
+      if (NOTIFICATION_KEYS.some((k) => k in body.data)) rescheduleUser(db, userId, now())
       return c.json(toSettingsDto(getSettings(db, userId)))
     })
 }

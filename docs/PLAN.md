@@ -89,19 +89,19 @@ Referencia funcional: [SPEC.md](./SPEC.md).
 
 ## M2 — Notificaciones programadas
 
-- [ ] Tabla `notification_jobs`.
-- [ ] `src/shared/schedule.ts`: función pura `buildJobsForFast(fast, settings, now)` que devuelve los jobs. Tests con objetivos de distintas duraciones, hitos que caen después del objetivo y aviso previo en el pasado.
-- [ ] Integración transaccional: al empezar, editar, terminar o borrar un ayuno, se cancelan los jobs y se vuelven a crear.
-- [ ] Bucle del planificador:
+- [x] Tabla `notification_jobs`.
+- [x] `src/shared/schedule.ts`: función pura `buildJobsForFast(fast, settings, now)` que devuelve los jobs. Tests con objetivos de distintas duraciones, hitos que caen después del objetivo y aviso previo en el pasado.
+- [x] Integración transaccional: al empezar, editar, terminar o borrar un ayuno, se cancelan los jobs y se vuelven a crear.
+- [x] Bucle del planificador:
   - Corre cada 15 s.
   - Envía a todas las suscripciones del usuario y limpia las que responden 404 o 410.
   - Reintenta y registra los fallos.
   - Gestiona los jobs atrasados tras un reinicio (ver SPEC §6).
-- [ ] Recordatorio diario: cálculo de la próxima ocurrencia en la zona horaria del usuario (con Luxon o `date-fns-tz`). Tests con el cambio de hora de marzo y de octubre. Se omite si hay un ayuno activo.
-- [ ] Textos de las notificaciones en español. Al tocar una, se abre o enfoca la PWA en `/`.
-- [ ] Ajustes de notificaciones: interruptores por tipo, minutos del aviso previo, hora del recordatorio, estado del push en el dispositivo y botón de prueba.
+- [x] Recordatorio diario: cálculo de la próxima ocurrencia en la zona horaria del usuario (con `Intl`, sin dependencias: `src/shared/tz.ts`). Tests con el cambio de hora de marzo y de octubre. Se omite si hay un ayuno activo.
+- [x] Textos de las notificaciones en español. Al tocar una, se abre o enfoca la PWA en `/`.
+- [x] Ajustes de notificaciones: interruptores por tipo, minutos del aviso previo, hora del recordatorio, estado del push en el dispositivo y botón de prueba.
 
-**Cierre:** un ayuno de prueba de 20 min con el aviso previo a 5 min hace llegar los dos pushes a su hora. Reiniciar el servicio a mitad no provoca duplicados ni pérdidas.
+**Cierre:** un ayuno personalizado de 1 h con el aviso previo a 15 min hace llegar los dos pushes a su hora al iPhone. (La lógica ya está cubierta por tests; falta la prueba real en el dispositivo.) Reiniciar el servicio a mitad no provoca duplicados ni pérdidas.
 
 ## M3 — Historial y estadísticas
 

@@ -119,3 +119,47 @@ export function Sheet({
     </div>
   )
 }
+
+/** Interruptor estilo iOS con su etiqueta. */
+export function Toggle({
+  label,
+  description,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string
+  description?: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+}) {
+  const id = useId()
+  return (
+    <div className="flex items-center gap-3">
+      <label htmlFor={id} className="flex-1 cursor-pointer">
+        <span className="block font-medium">{label}</span>
+        {description && (
+          <span className="block text-sm text-ink/60 dark:text-brand-50/60">{description}</span>
+        )}
+      </label>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative h-8 w-13 shrink-0 rounded-full transition disabled:opacity-40 ${
+          checked ? 'bg-brand-500' : 'bg-ink/15 dark:bg-white/20'
+        }`}
+      >
+        <span
+          className={`absolute top-1 left-1 size-6 rounded-full bg-white shadow transition-transform ${
+            checked ? 'translate-x-5' : ''
+          }`}
+        />
+      </button>
+    </div>
+  )
+}

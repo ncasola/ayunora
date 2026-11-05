@@ -4,6 +4,7 @@ import { purgeExpiredSessions } from './auth/session'
 import { openDb } from './db'
 import { loadEnv } from './env'
 import { createWebPushSender } from './push'
+import { Scheduler } from './scheduler'
 
 // En desarrollo se lee .env. En producción las variables las pone systemd (EnvironmentFile).
 if (process.env.NODE_ENV !== 'production') {
@@ -16,9 +17,10 @@ if (process.env.NODE_ENV !== 'production') {
 
 const env = loadEnv()
 const db = openDb(env.DATABASE_PATH, env.MIGRATIONS_DIR)
+const push = createWebPushSender(env)
 const app = createApp({
   db,
-  push: createWebPushSender(env),
+  push,
   config: {
     devLogging: env.NODE_ENV === 'development',
     secureCookies: env.cookieSecure,
@@ -33,12 +35,17 @@ const server = serve({ fetch: app.fetch, hostname: env.HOST, port: env.PORT }, (
   console.log(`Ayunora escuchando en http://${info.address}:${info.port} (${env.NODE_ENV})`)
 })
 
+// Planificador de notificaciones: envía los avisos vencidos cada 15 s.
+const scheduler = new Scheduler({ db, push, now: Date.now })
+scheduler.start()
+
 const housekeeping = setInterval(() => purgeExpiredSessions(db), 6 * 60 * 60 * 1000)
 housekeeping.unref()
 
 function shutdown(signal: string) {
   console.log(`${signal} recibido, cerrando…`)
   clearInterval(housekeeping)
+  scheduler.stop()
   server.close(() => {
     db.$client.close()
     process.exit(0)

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import type { PlanId } from '../../shared/plans'
+import type { JobKind, PreEndMinutes } from '../../shared/schedule'
 
 // Convención: todas las fechas son enteros con milisegundos UTC (ver docs/SPEC.md §5).
 const timestampMs = (name: string) => integer(name, { mode: 'timestamp_ms' })
@@ -37,10 +38,10 @@ export const settings = sqliteTable('settings', {
     .references(() => users.id, { onDelete: 'cascade' }),
   defaultPlan: text('default_plan').$type<PlanId>().notNull().default('16:8'),
   customGoalMinutes: integer('custom_goal_minutes').notNull().default(960),
-  // Notificaciones (se usan a partir del M2).
+  // Notificaciones
   notifyGoal: integer('notify_goal', { mode: 'boolean' }).notNull().default(true),
   notifyPreEnd: integer('notify_pre_end', { mode: 'boolean' }).notNull().default(true),
-  preEndMinutes: integer('pre_end_minutes').notNull().default(30),
+  preEndMinutes: integer('pre_end_minutes').$type<PreEndMinutes>().notNull().default(30),
   notifyMilestones: integer('notify_milestones', { mode: 'boolean' }).notNull().default(true),
   reminderEnabled: integer('reminder_enabled', { mode: 'boolean' }).notNull().default(false),
   reminderTime: text('reminder_time').notNull().default('20:00'),
@@ -89,7 +90,35 @@ export const pushSubscriptions = sqliteTable(
   (t) => [index('push_subscriptions_user_idx').on(t.userId)],
 )
 
+export const notificationJobs = sqliteTable(
+  'notification_jobs',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** null en el recordatorio diario, que no pertenece a ningún ayuno. */
+    fastId: integer('fast_id').references(() => fasts.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<JobKind>().notNull(),
+    sendAt: timestampMs('send_at').notNull(),
+    /** PushPayload en JSON. */
+    payload: text('payload').notNull(),
+    status: text('status').$type<JobStatus>().notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    sentAt: timestampMs('sent_at'),
+    createdAt: timestampMs('created_at').notNull().$defaultFn(now),
+  },
+  (t) => [
+    index('notification_jobs_due_idx').on(t.status, t.sendAt),
+    index('notification_jobs_fast_idx').on(t.fastId),
+    index('notification_jobs_user_kind_idx').on(t.userId, t.kind, t.status),
+  ],
+)
+
+export type JobStatus = 'pending' | 'sent' | 'canceled' | 'failed'
+
 export type UserRow = typeof users.$inferSelect
 export type SettingsRow = typeof settings.$inferSelect
 export type FastRow = typeof fasts.$inferSelect
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect
+export type NotificationJobRow = typeof notificationJobs.$inferSelect
