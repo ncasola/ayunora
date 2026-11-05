@@ -23,49 +23,32 @@ iPhone ──HTTPS──> Cloudflare (proxy, Full strict) ──HTTPS──> Ngi
 | `/etc/ayunora/env`                    | Secretos, con permisos `600`            | `root`    |
 | `/etc/systemd/system/ayunora.service` | Copia de `deploy/ayunora.service`       | `root`    |
 
-## Puesta en marcha (una sola vez) — PENDIENTE
+## Puesta en marcha (una sola vez) — HECHA el 05/11/2026
 
-### Fase A — Node y usuario
+El detalle está en el `RUNBOOK.md` de `infra-vps` («Nuevo sitio: ayunora.es»). En resumen:
 
-1. Instalar Node 24 LTS desde NodeSource y comprobar `node -v`.
-   - Verificar que no choca con nada de WordOps.
-2. Crear el usuario de sistema: `sudo useradd --system --no-create-home --shell /usr/sbin/nologin ayunora`.
-3. Crear las carpetas de la app:
-   - `sudo mkdir -p /opt/ayunora/releases`
-   - `sudo chown -R nestor:nestor /opt/ayunora`
-4. Dar a `nestor` sudo sin contraseña **solo** para reiniciar el servicio y ver sus logs. En `/etc/sudoers.d/ayunora`, validado con `visudo -c`:
-   ```
-   nestor ALL=(root) NOPASSWD: /usr/bin/systemctl restart ayunora, /usr/bin/journalctl -u ayunora *
-   ```
+### Fase A — Node y usuario ✅
 
-### Fase B — Secretos y servicio
+- Node **24.22.2** desde el repositorio apt de NodeSource, con clave firmada en `/etc/apt/keyrings/nodesource.gpg`. `unattended-upgrades` no lo actualiza: los parches se aplican a mano.
+- Usuario de sistema `ayunora` y `/opt/ayunora/releases`, con `nestor` como dueño.
+- No hizo falta regla de sudoers: `nestor` ya tiene sudo sin contraseña.
 
-1. Crear `/etc/ayunora/env` con permisos `600` y dueño root. El fichero lleva `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=https://ayunora.es` e `INVITE_CODE` (el código que hay que dar para registrarse).
-   - Claves VAPID **nuevas**, generadas para producción con `npx web-push generate-vapid-keys`.
-   - Ojo: si se cambian las claves VAPID, todas las suscripciones dejan de valer.
-2. Copiar `deploy/ayunora.service` a `/etc/systemd/system/` y ejecutar `sudo systemctl daemon-reload && sudo systemctl enable ayunora`.
-3. Lanzar el primer despliegue con `scripts/deploy.sh`.
-4. Comprobar:
-   - `curl http://127.0.0.1:3100/api/health` responde.
-   - `systemctl status ayunora`.
-   - RSS por debajo de 120 MB.
+### Fase B — Secretos y servicio ✅
 
-### Fase C — Nginx, DNS y certificado
+- `/etc/ayunora/env` (root, `600`) con las claves VAPID de producción, `VAPID_SUBJECT` e `INVITE_CODE`.
+  - Leer el código: `ssh ionos sudo grep INVITE_CODE /etc/ayunora/env`.
+  - **Si se cambian las claves VAPID, todas las suscripciones dejan de valer.**
+- `ayunora.service` habilitado. RSS medido: 82 MB.
 
-1. Crear el vhost `ayunora.es` como reverse proxy hacia `127.0.0.1:3100`.
-   - Mirar en `wo site create --help` si existe `--proxy`. Si no, crear el vhost a mano.
-   - **Sin caché FastCGI**: es compartida entre sitios (trampa 3).
-   - Cabeceras que debe pasar al backend: `Host`, `X-Forwarded-For` y `X-Forwarded-Proto`.
-2. En Cloudflare, crear el A de `@` hacia `<IP-del-VPS>` y el CNAME de `www` hacia `ayunora.es`, los dos con proxy activado. Se hace justo antes del certificado, para no caer en el vhost de otro sitio del VPS (trampa 2).
-3. Emitir el certificado por HTTP-01 con `--force`, que es obligatorio con el proxy de Cloudflare (trampa 5). Si `www` da problemas, usar `-le subdomain` (trampa 4).
-4. Redirigir `www` al dominio raíz con un 301, en Nginx o con una regla de Cloudflare.
-5. Cloudflare, ajustes de la zona:
-   - SSL en Full (strict) y _Always Use HTTPS_ activado.
-   - Regla de caché: _Bypass_ para `/api/*`, `/sw.js`, `/index.html` y `/manifest.webmanifest`.
-6. Verificar:
-   - `https://ayunora.es/api/health` responde.
-   - La instalación en el iPhone funciona.
-   - **Llega el push de prueba con la app cerrada** (criterio de cierre del M0).
+### Fase C — Nginx y certificado ✅
+
+- `wo site create ayunora.es --proxy=127.0.0.1:3100`. La plantilla no trae caché FastCGI ni las `location` de estáticos de WordOps, pero tampoco el reto ACME.
+  - Se añadió a mano `/var/www/ayunora.es/conf/nginx/acme.conf`. **No borrarlo**, o las renovaciones fallarán en silencio.
+- `wo site update ayunora.es -le subdomain --force`, sin `www` (no existe en la zona). El certificado lo renueva acme.sh.
+- Para probar el vhost desde el servidor, usar la IP pública: en `127.0.0.1:80` responde `stub_status`.
+- Cloudflare: no hace falta ninguna regla de caché. `/api` (JSON) no se cachea, y `sw.js` se revalida en el borde.
+  - Opcional: Browser Cache TTL → «Respect Existing Headers», para que `sw.js` no llegue con `max-age=14400`.
+- Pendiente: comprobar en el iPhone la instalación y el push con la app cerrada (cierre del M0).
 
 ### Fase D — Backups (M5)
 
