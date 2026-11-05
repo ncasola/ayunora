@@ -130,12 +130,9 @@ Referencia funcional: [SPEC.md](./SPEC.md).
 - [x] Nombre (Ayunora), icono (amanecer en anillo) e iconos de todos los tamaños generados desde un SVG, más `apple-touch-icon`. Splash de iOS: no (opcional).
 - [x] Modo oscuro, estados vacíos, errores de red, aviso de «Sin conexión» y pantalla de error con «Recargar» si algo revienta.
 - [x] Aviso legal breve en la tarjeta de fase y en Ajustes: información orientativa, no es consejo médico.
-- [ ] **Backups:**
-  - Volcado con `sqlite3 /var/lib/ayunora/ayunora.db ".backup …"` (o la API de backup de better-sqlite3) en `/var/backups/ayunora/` antes del restic diario.
-  - Añadir esa ruta a `backup.sh`.
-  - Probar una restauración.
+- [x] **Backups:** la SQLite entra en el restic diario a R2 del VPS (copia en caliente con `.backup` más `integrity_check`), junto con `/etc/ayunora`, que tiene las claves VAPID. Restauración probada el 05/11/2026. Detalle en el `RUNBOOK.md` de `infra-vps`.
 - [ ] Monitorización mínima: `/api/health` en un uptime checker (por ejemplo, el de Cloudflare o UptimeRobot) y logs en journald.
-- [ ] Documentar el despliegue en el `RUNBOOK.md` de `infra-vps` y en el README de este repo.
+- [x] Documentar el despliegue en el `RUNBOOK.md` de `infra-vps` y en el README de este repo.
 - [ ] Una semana de uso real antes de cerrar el MVP.
 
 ---
