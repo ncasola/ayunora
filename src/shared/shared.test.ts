@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { registerSchema, startFastSchema } from './api'
 import { PHASES, phaseAt } from './phases'
 import { goalMinutesFor, isValidGoalMinutes } from './plans'
+import { isAllowedPushEndpoint } from './push'
 
 const H = 60 * 60 * 1000
 
@@ -68,4 +69,26 @@ describe('esquemas de la API', () => {
     expect(startFastSchema.safeParse({ plan: '16:8', goalMinutes: 960 }).success).toBe(true)
     expect(startFastSchema.safeParse({ plan: '16:8', goalMinutes: 30 }).success).toBe(false)
   })
+})
+
+describe('suscripciones push: solo servicios reales (anti-SSRF)', () => {
+  const ok = [
+    'https://web.push.apple.com/QGxyz',
+    'https://fcm.googleapis.com/fcm/send/abc:def',
+    'https://updates.push.services.mozilla.com/wpush/v2/gAAA',
+    'https://wns2-par02p.notify.windows.com/w/?token=x',
+  ]
+  const bad = [
+    'http://web.push.apple.com/x', // sin TLS
+    'https://127.0.0.1:3306/', // servicio interno
+    'https://localhost/x',
+    'https://169.254.169.254/latest/meta-data/', // metadatos de la nube
+    'https://web.push.apple.com.evil.example/x', // sufijo falso
+    'https://evilpush.apple.com.example/x',
+    'https://web.push.apple.com:8443/x', // puerto distinto
+    'https://user:pass@fcm.googleapis.com/x',
+    'no-es-url',
+  ]
+  it.each(ok)('acepta %s', (endpoint) => expect(isAllowedPushEndpoint(endpoint)).toBe(true))
+  it.each(bad)('rechaza %s', (endpoint) => expect(isAllowedPushEndpoint(endpoint)).toBe(false))
 })

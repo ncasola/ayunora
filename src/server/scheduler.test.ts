@@ -24,7 +24,7 @@ async function world(senderOverride?: PushSender) {
   const env = setup(senderOverride ?? fake.sender)
   const ella = await env.registered()
   await ella.post('/push/subscriptions', {
-    endpoint: 'https://push.example/ella',
+    endpoint: 'https://web.push.apple.com/ella',
     keys: { p256dh: 'p', auth: 'a' },
   })
   const scheduler = new Scheduler({

@@ -1,5 +1,6 @@
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono, type Context } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { logger } from 'hono/logger'
 import { secureHeaders } from 'hono/secure-headers'
 import { apiError, sameOriginOnly, sessionMiddleware, type AppEnv } from './context'
@@ -12,14 +13,43 @@ import { weightRoutes } from './routes/weights'
 
 export type { AppDeps } from './deps'
 
+const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
+
 export function createApp(deps: AppDeps) {
   const { db, config } = deps
   const app = new Hono<AppEnv>()
 
   if (config.devLogging) app.use(logger())
-  app.use(secureHeaders())
+  app.use(
+    secureHeaders({
+      // Solo se carga código propio y el de Turnstile. Sin `unsafe-inline` en scripts: si
+      // alguien consiguiera inyectar HTML, su <script> no se ejecutaría.
+      contentSecurityPolicy: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", TURNSTILE_ORIGIN],
+        frameSrc: [TURNSTILE_ORIGIN],
+        connectSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:'],
+        // React pone `style=` en algunos elementos (anillo de progreso, transiciones).
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        workerSrc: ["'self'"],
+        manifestSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    }),
+  )
 
   const api = new Hono<AppEnv>()
+    // Ninguna petición legítima de la app pasa de unos pocos KB.
+    .use(
+      bodyLimit({
+        maxSize: 64 * 1024,
+        onError: (c) => c.json({ error: 'payload_too_large' }, 413),
+      }),
+    )
     .use(sameOriginOnly)
     .use(sessionMiddleware(db, config.secureCookies))
     .get('/health', (c) => {

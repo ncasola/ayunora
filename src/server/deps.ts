@@ -1,9 +1,12 @@
 import type { Db } from './db'
 import type { PushSender } from './push'
+import type { TurnstileVerifier } from './turnstile'
 
 export type AppDeps = {
   db: Db
   push: PushSender
+  /** `null` = sin Turnstile (solo fuera de producción; lo garantiza loadEnv). */
+  turnstile: { siteKey: string; verifier: TurnstileVerifier } | null
   config: {
     devLogging: boolean
     secureCookies: boolean

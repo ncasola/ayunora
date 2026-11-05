@@ -5,6 +5,7 @@ import { openDb } from './db'
 import { loadEnv } from './env'
 import { createWebPushSender } from './push'
 import { Scheduler } from './scheduler'
+import { createTurnstileVerifier } from './turnstile'
 
 // En desarrollo se lee .env. En producción las variables las pone systemd (EnvironmentFile).
 if (process.env.NODE_ENV !== 'production') {
@@ -21,6 +22,16 @@ const push = createWebPushSender(env)
 const app = createApp({
   db,
   push,
+  turnstile: env.turnstile
+    ? {
+        siteKey: env.turnstile.siteKey,
+        verifier: createTurnstileVerifier({
+          secret: env.turnstile.secret,
+          hostnames: env.turnstile.hostnames,
+          allowTestingKeys: env.NODE_ENV !== 'production',
+        }),
+      }
+    : null,
   config: {
     devLogging: env.NODE_ENV === 'development',
     secureCookies: env.cookieSecure,
@@ -30,6 +41,8 @@ const app = createApp({
   },
   now: Date.now,
 })
+
+if (!env.turnstile) console.warn('[turnstile] desactivado: solo permitido fuera de producción')
 
 const server = serve({ fetch: app.fetch, hostname: env.HOST, port: env.PORT }, (info) => {
   console.log(`Ayunora escuchando en http://${info.address}:${info.port} (${env.NODE_ENV})`)

@@ -38,6 +38,8 @@ const messages: Partial<Record<ApiError['code'], string>> = {
   unauthorized: 'Tu sesión ha caducado. Vuelve a entrar.',
   rate_limited: 'Demasiados intentos. Espera unos minutos.',
   invalid_credentials: 'Email o contraseña incorrectos.',
+  captcha_failed: 'No se pudo comprobar que no eres un robot. Inténtalo de nuevo.',
+  captcha_unavailable: 'Ahora mismo no se puede hacer la verificación. Inténtalo en unos minutos.',
   invalid_invite: 'El código de invitación no es correcto.',
   email_taken: 'Ya existe una cuenta con ese email.',
   fast_already_active: 'Ya tienes un ayuno en curso.',

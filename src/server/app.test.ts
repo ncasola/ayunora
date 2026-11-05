@@ -4,6 +4,7 @@ import type { WeightDto } from '../shared/weights'
 import type { Db } from './db'
 import { notificationJobs, pushSubscriptions } from './db/schema'
 import { fakeSender, H, INVITE, setup, T0 } from './testing'
+import type { TurnstileVerifier } from './turnstile'
 
 describe('salud y estáticos', () => {
   it('health responde sin sesión', async () => {
@@ -256,21 +257,21 @@ describe('push', () => {
 
   it('suscribe dispositivos del usuario y el push de prueba solo va a los suyos', async () => {
     const { sender, sent } = fakeSender({
-      'https://push.example/gone': { ok: false, gone: true, status: 410, error: 'Gone' },
+      'https://web.push.apple.com/gone': { ok: false, gone: true, status: 410, error: 'Gone' },
     })
     const { registered, db } = setup(sender)
     const ella = await registered('ella@ejemplo.es')
     const el = await registered('el@ejemplo.es')
 
-    await ella.post('/push/subscriptions', sub('https://push.example/ella'))
-    await ella.post('/push/subscriptions', sub('https://push.example/gone'))
-    await el.post('/push/subscriptions', sub('https://push.example/el'))
+    await ella.post('/push/subscriptions', sub('https://web.push.apple.com/ella'))
+    await ella.post('/push/subscriptions', sub('https://web.push.apple.com/gone'))
+    await el.post('/push/subscriptions', sub('https://web.push.apple.com/el'))
 
     const res = await ella.post('/push/test')
     expect(await res.json()).toEqual({ sent: 1, removed: 1, failed: 0 })
     expect(sent.map((s) => s.endpoint).sort()).toEqual([
-      'https://push.example/ella',
-      'https://push.example/gone',
+      'https://web.push.apple.com/ella',
+      'https://web.push.apple.com/gone',
     ])
 
     const endpoints = db
@@ -279,15 +280,15 @@ describe('push', () => {
       .all()
       .map((s) => s.endpoint)
       .sort()
-    expect(endpoints).toEqual(['https://push.example/el', 'https://push.example/ella'])
+    expect(endpoints).toEqual(['https://web.push.apple.com/el', 'https://web.push.apple.com/ella'])
   })
 
   it('un dispositivo suscrito con otra cuenta pasa a la cuenta actual', async () => {
     const { registered, db } = setup()
     const ella = await registered('ella@ejemplo.es')
     const el = await registered('el@ejemplo.es')
-    await ella.post('/push/subscriptions', sub('https://push.example/movil'))
-    await el.post('/push/subscriptions', sub('https://push.example/movil'))
+    await ella.post('/push/subscriptions', sub('https://web.push.apple.com/movil'))
+    await el.post('/push/subscriptions', sub('https://web.push.apple.com/movil'))
     const rows = db.select().from(pushSubscriptions).all()
     expect(rows).toHaveLength(1)
   })
@@ -485,5 +486,175 @@ describe('peso (M4)', () => {
     expect(await (await c.patch('/settings', { weightGoalKg: null })).json()).toMatchObject({
       weightGoalKg: null,
     })
+  })
+})
+
+describe('Turnstile en login y registro', () => {
+  /** Verificador falso: acepta solo el token 'bueno' para la acción indicada, y una sola vez. */
+  function fakeTurnstile() {
+    const used = new Set<string>()
+    const calls: Array<{ token: unknown; action: string }> = []
+    const verifier: TurnstileVerifier = {
+      async verify(token, action) {
+        calls.push({ token, action })
+        if (typeof token !== 'string' || token === '') return { ok: false, reason: 'missing' }
+        if (token === 'caido') return { ok: false, reason: 'unavailable' }
+        if (!token.startsWith(`bueno-${action}`) || used.has(token)) {
+          return { ok: false, reason: 'invalid' }
+        }
+        used.add(token)
+        return { ok: true }
+      },
+    }
+    return { verifier, calls }
+  }
+
+  const registerBody = (extra: object = {}) => ({
+    email: 'nueva@ejemplo.es',
+    password: 'contraseña-segura',
+    name: 'Nueva',
+    inviteCode: INVITE,
+    timezone: 'Atlantic/Canary',
+    ...extra,
+  })
+
+  it('expone la clave pública del widget (y null si está desactivado)', async () => {
+    const on = setup(undefined, { turnstile: fakeTurnstile().verifier })
+    expect(await (await on.client().get('/auth/config')).json()).toEqual({
+      turnstileSiteKey: 'site-key-de-prueba',
+    })
+    const off = setup()
+    expect(await (await off.client().get('/auth/config')).json()).toEqual({
+      turnstileSiteKey: null,
+    })
+  })
+
+  it('el registro exige un token válido, y antes que el código de invitación', async () => {
+    const { verifier, calls } = fakeTurnstile()
+    const { client } = setup(undefined, { turnstile: verifier })
+    const c = client()
+    const sinToken = await c.post('/auth/register', registerBody())
+    expect(sinToken.status).toBe(403)
+    expect(await sinToken.json()).toEqual({ error: 'captcha_failed' })
+    // Con código de invitación malo pero sin captcha válido, no revela si el código es correcto.
+    const malo = await c.post(
+      '/auth/register',
+      registerBody({ inviteCode: 'otro', turnstileToken: 'x' }),
+    )
+    expect(await malo.json()).toEqual({ error: 'captcha_failed' })
+    // El token de login no sirve para registrarse.
+    expect(
+      (await c.post('/auth/register', registerBody({ turnstileToken: 'bueno-login-1' }))).status,
+    ).toBe(403)
+    expect(
+      (await c.post('/auth/register', registerBody({ turnstileToken: 'bueno-register-1' }))).status,
+    ).toBe(201)
+    expect(calls.map((x) => x.action)).toEqual(['register', 'register', 'register', 'register'])
+  })
+
+  it('el login exige token, no admite reutilizarlo y falla cerrado si Cloudflare no responde', async () => {
+    const { verifier } = fakeTurnstile()
+    const { client } = setup(undefined, { turnstile: verifier })
+    await client().post('/auth/register', registerBody({ turnstileToken: 'bueno-register-0' }))
+    const c = client()
+    const creds = { email: 'nueva@ejemplo.es', password: 'contraseña-segura' }
+
+    expect((await c.post('/auth/login', creds)).status).toBe(403)
+    const caido = await c.post('/auth/login', { ...creds, turnstileToken: 'caido' })
+    expect(caido.status).toBe(503)
+    expect(await caido.json()).toEqual({ error: 'captcha_unavailable' })
+
+    expect(
+      (await c.post('/auth/login', { ...creds, turnstileToken: 'bueno-login-1' })).status,
+    ).toBe(200)
+    // El mismo token por segunda vez: rechazado.
+    expect(
+      (await client().post('/auth/login', { ...creds, turnstileToken: 'bueno-login-1' })).status,
+    ).toBe(403)
+  })
+
+  it('con captcha válido pero contraseña mala, sigue siendo 401', async () => {
+    const { verifier } = fakeTurnstile()
+    const { client } = setup(undefined, { turnstile: verifier })
+    await client().post('/auth/register', registerBody({ turnstileToken: 'bueno-register-0' }))
+    const res = await client().post('/auth/login', {
+      email: 'nueva@ejemplo.es',
+      password: 'mala',
+      turnstileToken: 'bueno-login-9',
+    })
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('endurecimiento', () => {
+  it('limita los intentos de login por email aunque cambie la IP', async () => {
+    const { client } = setup()
+    let last = 0
+    for (let i = 0; i < 11; i++) {
+      const res = await client().call(
+        'POST',
+        '/auth/login',
+        { email: 'objetivo@ejemplo.es', password: 'x' },
+        { 'x-real-ip': `10.0.0.${i}` },
+      )
+      last = res.status
+    }
+    expect(last).toBe(429)
+  })
+
+  it('acertar la contraseña no reinicia el contador de intentos de la IP', async () => {
+    const { registered, client } = setup()
+    await registered('a@ejemplo.es')
+    const ip = { 'x-real-ip': '9.9.9.9' }
+    for (let i = 0; i < 9; i++) {
+      await client().call('POST', '/auth/login', { email: 'b@ejemplo.es', password: 'x' }, ip)
+    }
+    const ok = await client().call(
+      'POST',
+      '/auth/login',
+      { email: 'a@ejemplo.es', password: 'contraseña-segura' },
+      ip,
+    )
+    expect(ok.status).toBe(200)
+    const blocked = await client().call(
+      'POST',
+      '/auth/login',
+      { email: 'b@ejemplo.es', password: 'x' },
+      ip,
+    )
+    expect(blocked.status).toBe(429)
+  })
+
+  it('rechaza cuerpos demasiado grandes', async () => {
+    const { client } = setup()
+    const res = await client().post('/auth/login', {
+      email: 'a@a.es',
+      password: 'x'.repeat(70_000),
+    })
+    expect(res.status).toBe(413)
+  })
+
+  it('envía una CSP que solo permite código propio y el de Turnstile', async () => {
+    const { client } = setup()
+    const csp = (await client().get('/health')).headers.get('content-security-policy') ?? ''
+    expect(csp).toContain("script-src 'self' https://challenges.cloudflare.com")
+    expect(csp).toContain('frame-src https://challenges.cloudflare.com')
+    expect(csp).toContain("frame-ancestors 'none'")
+    expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/)
+  })
+})
+
+describe('push: anti-SSRF en la API', () => {
+  it('no deja registrar endpoints internos ni de servicios desconocidos', async () => {
+    const { registered, db } = setup()
+    const c = await registered()
+    for (const endpoint of ['https://127.0.0.1:3100/api/health', 'https://intranet.example/x']) {
+      const res = await c.post('/push/subscriptions', {
+        endpoint,
+        keys: { p256dh: 'p', auth: 'a' },
+      })
+      expect(res.status).toBe(400)
+    }
+    expect(db.select().from(pushSubscriptions).all()).toHaveLength(0)
   })
 })

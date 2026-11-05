@@ -3,6 +3,7 @@ import { createApp } from './app'
 import { openDb } from './db'
 import type { PushPayload } from '../shared/push'
 import type { PushSender, PushTarget, SendResult } from './push'
+import type { TurnstileVerifier } from './turnstile'
 
 export const H = 60 * 60 * 1000
 export const INVITE = 'invita-123'
@@ -21,12 +22,16 @@ export function fakeSender(results: Record<string, SendResult> = {}) {
   return { sender, sent, payloads }
 }
 
-export function setup(sender: PushSender = fakeSender().sender) {
+export function setup(
+  sender: PushSender = fakeSender().sender,
+  opts: { turnstile?: TurnstileVerifier } = {},
+) {
   const db = openDb(':memory:', './drizzle')
   const clock = { now: T0 }
   const app = createApp({
     db,
     push: sender,
+    turnstile: opts.turnstile ? { siteKey: 'site-key-de-prueba', verifier: opts.turnstile } : null,
     config: {
       devLogging: false,
       secureCookies: false,

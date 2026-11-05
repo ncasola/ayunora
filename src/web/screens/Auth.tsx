@@ -1,10 +1,11 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { InstallBanner } from '../components/InstallBanner'
+import { TurnstileWidget } from '../components/TurnstileWidget'
 import { Button, ErrorText, Field } from '../components/ui'
 import { errorMessage } from '../lib/api'
 import { deviceTimeZone } from '../lib/format'
-import { useLogin, useRegister } from '../lib/queries'
+import { useAuthConfig, useLogin, useRegister } from '../lib/queries'
 
 function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -20,14 +21,50 @@ function AuthLayout({ title, children }: { title: string; children: ReactNode })
   )
 }
 
+/**
+ * Estado del captcha de un formulario. Si el servidor no tiene Turnstile (desarrollo), no se
+ * muestra nada y el formulario funciona igual. Tras cada envío hay que llamar a `consume()`:
+ * el token ya se ha canjeado y no sirve para otro intento.
+ */
+function useCaptcha(action: 'login' | 'register') {
+  const config = useAuthConfig()
+  const [token, setToken] = useState<string | null>(null)
+  const [resetKey, setResetKey] = useState(0)
+  const [error, setError] = useState<string>()
+  const siteKey = config.data?.turnstileSiteKey ?? null
+
+  return {
+    /** Listo para enviar: la configuración ha cargado y, si hay captcha, ya hay token. */
+    ready: config.isSuccess && (siteKey === null || token !== null),
+    waiting: config.isSuccess && siteKey !== null && token === null,
+    token: token ?? undefined,
+    error: config.error ? errorMessage(config.error) : error,
+    consume: () => setResetKey((k) => k + 1),
+    widget: siteKey ? (
+      <TurnstileWidget
+        siteKey={siteKey}
+        action={action}
+        resetKey={resetKey}
+        onToken={(t) => {
+          setToken(t)
+          if (t) setError(undefined)
+        }}
+        onError={setError}
+      />
+    ) : null,
+  }
+}
+
 export function LoginScreen() {
   const login = useLogin()
+  const captcha = useCaptcha('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    login.mutate({ email, password })
+    if (!captcha.ready) return
+    login.mutate({ email, password, turnstileToken: captcha.token }, { onSettled: captcha.consume })
   }
 
   return (
@@ -51,9 +88,10 @@ export function LoginScreen() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <ErrorText>{login.error ? errorMessage(login.error) : undefined}</ErrorText>
-        <Button type="submit" busy={login.isPending}>
-          Entrar
+        {captcha.widget}
+        <ErrorText>{login.error ? errorMessage(login.error) : captcha.error}</ErrorText>
+        <Button type="submit" busy={login.isPending} disabled={!captcha.ready}>
+          {captcha.waiting ? 'Comprobando…' : 'Entrar'}
         </Button>
       </form>
       <p className="text-center text-sm">
@@ -68,13 +106,18 @@ export function LoginScreen() {
 
 export function RegisterScreen() {
   const register = useRegister()
+  const captcha = useCaptcha('register')
   const [form, setForm] = useState({ name: '', email: '', password: '', inviteCode: '' })
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [k]: e.target.value }))
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    register.mutate({ ...form, timezone: deviceTimeZone() })
+    if (!captcha.ready) return
+    register.mutate(
+      { ...form, timezone: deviceTimeZone(), turnstileToken: captcha.token },
+      { onSettled: captcha.consume },
+    )
   }
 
   return (
@@ -116,9 +159,10 @@ export function RegisterScreen() {
           value={form.inviteCode}
           onChange={set('inviteCode')}
         />
-        <ErrorText>{register.error ? errorMessage(register.error) : undefined}</ErrorText>
-        <Button type="submit" busy={register.isPending}>
-          Crear cuenta
+        {captcha.widget}
+        <ErrorText>{register.error ? errorMessage(register.error) : captcha.error}</ErrorText>
+        <Button type="submit" busy={register.isPending} disabled={!captcha.ready}>
+          {captcha.waiting ? 'Comprobando…' : 'Crear cuenta'}
         </Button>
       </form>
       <p className="text-center text-sm">

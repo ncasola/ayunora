@@ -29,18 +29,23 @@ const goalMinutes = z
 const epochMs = z.number().int().nonnegative()
 const name = z.string().trim().min(1, 'Pon tu nombre').max(50)
 
+/** Token del widget de Turnstile. El servidor lo exige cuando Turnstile está activo. */
+const turnstileToken = z.string().max(2048).optional()
+
 export const registerSchema = z.object({
   email,
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(200),
   name,
-  inviteCode: z.string().min(1, 'Falta el código de invitación'),
+  inviteCode: z.string().min(1, 'Falta el código de invitación').max(100),
   timezone,
+  turnstileToken,
 })
 export type RegisterInput = z.input<typeof registerSchema>
 
 export const loginSchema = z.object({
   email,
   password: z.string().min(1).max(200),
+  turnstileToken,
 })
 export type LoginInput = z.input<typeof loginSchema>
 
@@ -131,6 +136,9 @@ export type SettingsDto = {
 
 export type MeDto = { user: UserDto; settings: SettingsDto }
 
+/** Configuración pública de las pantallas de login y registro. */
+export type AuthConfigDto = { turnstileSiteKey: string | null }
+
 export type FastDto = {
   id: number
   startedAt: number
@@ -154,6 +162,8 @@ export type ApiErrorCode =
   | 'rate_limited'
   | 'validation_error'
   | 'invalid_credentials'
+  | 'captcha_failed'
+  | 'captcha_unavailable'
   | 'invalid_invite'
   | 'email_taken'
   | 'not_found'

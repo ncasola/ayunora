@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query'
 import type {
   ActiveFastDto,
+  AuthConfigDto,
   FastDto,
   FastPageDto,
   LoginInput,
@@ -30,6 +31,7 @@ export const keys = {
   history: ['fasts', 'history'] as const,
   stats: ['fasts', 'stats'] as const,
   weights: ['weights'] as const,
+  authConfig: ['auth-config'] as const,
 }
 
 /** `null` = sin sesión. */
@@ -236,5 +238,16 @@ export function useDeleteWeight() {
     mutationFn: (day: string) => api(`/weights/${day}`, { method: 'DELETE' }),
     onSuccess: (_res, day) =>
       qc.setQueryData<WeightDto[]>(keys.weights, (prev = []) => prev.filter((w) => w.day !== day)),
+  })
+}
+
+// ---- Login ----
+
+/** Clave pública de Turnstile. No cambia mientras la app está abierta. */
+export function useAuthConfig() {
+  return useQuery({
+    queryKey: keys.authConfig,
+    queryFn: () => api<AuthConfigDto>('/auth/config'),
+    staleTime: Infinity,
   })
 }

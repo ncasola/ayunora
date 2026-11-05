@@ -35,8 +35,13 @@ El detalle está en el `RUNBOOK.md` de `infra-vps` («Nuevo sitio: ayunora.es»)
 
 ### Fase B — Secretos y servicio ✅
 
-- `/etc/ayunora/env` (root, `600`) con las claves VAPID de producción, `VAPID_SUBJECT` e `INVITE_CODE`.
-  - Leer el código: `ssh ionos sudo grep INVITE_CODE /etc/ayunora/env`.
+- `/etc/ayunora/env` (root, `600`) con las claves VAPID de producción, `VAPID_SUBJECT`, `INVITE_CODE` y Turnstile (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET` y `TURNSTILE_HOSTNAMES=ayunora.es`).
+  - Leer el código: `ssh ionos "sudo grep INVITE_CODE /etc/ayunora/env"`.
+  - Rotar el código: genera uno aleatorio en el servidor sin mostrarlo. Lo aplica el siguiente despliegue o un `systemctl restart ayunora`:
+    ```bash
+    ssh ionos 'N=$(head -c 12 /dev/urandom | base64 | tr "+/" "-_" | tr -d "="); export N; sudo --preserve-env=N sh -c "umask 077; awk \"/^INVITE_CODE=/{print \\\"INVITE_CODE=\\\" ENVIRON[\\\"N\\\"]; next} {print}\" /etc/ayunora/env > /etc/ayunora/env.nuevo && mv /etc/ayunora/env.nuevo /etc/ayunora/env"'
+    ```
+  - **Sin Turnstile configurado, el servidor no arranca en producción**: falla cerrado a propósito. El secreto se rota desde el panel de Cloudflare (Turnstile › widget › Rotate secret), sustituyendo después `TURNSTILE_SECRET`.
   - **Si se cambian las claves VAPID, todas las suscripciones dejan de valer.**
 - `ayunora.service` habilitado. RSS medido: 82 MB.
 
@@ -50,10 +55,10 @@ El detalle está en el `RUNBOOK.md` de `infra-vps` («Nuevo sitio: ayunora.es»)
   - Opcional: Browser Cache TTL → «Respect Existing Headers», para que `sw.js` no llegue con `max-age=14400`.
 - Pendiente: comprobar en el iPhone la instalación y el push con la app cerrada (cierre del M0).
 
-### Fase D — Backups (M5)
+### Fase D — Backups ✅
 
-- Ejecutar `sqlite3 /var/lib/ayunora/ayunora.db ".backup /var/backups/ayunora/ayunora.db"` antes del restic diario, añadiéndolo a `backup.sh` del VPS.
-- Hacer una prueba de restauración.
+- `backup.sh` del VPS copia la SQLite en caliente (`sqlite3 … ".backup …"` y después `integrity_check`) junto con los volcados de MariaDB, y además `/etc/ayunora`. Todo va al restic diario cifrado en R2.
+- Restauración probada el 05/11/2026. El procedimiento está en el runbook del repo de infraestructura.
 
 ## Operación
 

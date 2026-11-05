@@ -42,7 +42,16 @@ Hacer una PWA sencilla, instalable en el iPhone, para registrar ayunos intermite
 - **Registro** con email, contraseña (mínimo 8 caracteres), nombre y **código de invitación**, que es una variable de entorno (`INVITE_CODE`).
 - **Login y logout.** La sesión es una cookie `httpOnly`, `Secure` y `SameSite=Lax` que dura 1 año y se renueva con el uso. Los tokens de sesión se guardan hasheados.
 - La **zona horaria** del usuario se toma del navegador (`Intl.DateTimeFormat().resolvedOptions().timeZone`) y se puede editar en Ajustes.
-- Límite de intentos de login: como máximo 10 por IP cada 15 minutos (en memoria).
+- Límite de intentos de login, en memoria: 10 por IP cada 15 minutos y 10 por email cada hora. Acertar no reinicia el contador.
+- **Cloudflare Turnstile** en el login y en el registro (acciones `login` y `register`). El servidor canjea el token en siteverify antes de comprobar la contraseña o el código de invitación, y valida `success`, `action` y `hostname`. Un token solo vale una vez. Si Cloudflare no responde, se rechaza: falla cerrado. En producción es obligatorio, y el servidor no arranca sin las variables o con una clave de prueba.
+
+### 4.1.1 Seguridad (resumen)
+
+- **CSP:** solo código propio y el de Turnstile (`challenges.cloudflare.com`), sin `unsafe-inline` en scripts y con `frame-ancestors 'none'`. A eso se suman HSTS, `nosniff` y `Referrer-Policy: no-referrer`.
+- **CSRF:** cookie `SameSite=Lax` y comprobación de `Origin` en todas las peticiones que modifican datos.
+- **Cuerpo de las peticiones:** como máximo 64 KB en `/api`.
+- **Suscripciones push:** solo se admiten endpoints HTTPS de los servicios de push reales (Apple, Google, Mozilla y Microsoft). Así el servidor no se puede usar para hacer peticiones a servicios internos (SSRF).
+- **Datos:** cada consulta se filtra por `user_id`, con tests que comprueban que un usuario no ve ni toca lo de otro.
 
 ### 4.2 Planes de ayuno
 
