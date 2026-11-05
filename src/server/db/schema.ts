@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import type { PlanId } from '../../shared/plans'
 import type { JobKind, PreEndMinutes } from '../../shared/schedule'
 
@@ -45,7 +45,26 @@ export const settings = sqliteTable('settings', {
   notifyMilestones: integer('notify_milestones', { mode: 'boolean' }).notNull().default(true),
   reminderEnabled: integer('reminder_enabled', { mode: 'boolean' }).notNull().default(false),
   reminderTime: text('reminder_time').notNull().default('20:00'),
+  // Peso
+  weightGoalKg: real('weight_goal_kg'),
 })
+
+export const weights = sqliteTable(
+  'weights',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Día local del usuario, 'YYYY-MM-DD'. Un registro por día: el segundo sobrescribe. */
+    day: text('day').notNull(),
+    kg: real('kg').notNull(),
+    note: text('note'),
+    createdAt: timestampMs('created_at').notNull().$defaultFn(now),
+    updatedAt: timestampMs('updated_at').notNull().$defaultFn(now),
+  },
+  (t) => [uniqueIndex('weights_user_day_unique').on(t.userId, t.day)],
+)
 
 export const fasts = sqliteTable(
   'fasts',
@@ -122,3 +141,4 @@ export type SettingsRow = typeof settings.$inferSelect
 export type FastRow = typeof fasts.$inferSelect
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect
 export type NotificationJobRow = typeof notificationJobs.$inferSelect
+export type WeightRow = typeof weights.$inferSelect

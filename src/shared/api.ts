@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { GOAL_LIMITS, isValidGoalMinutes, PLAN_IDS, type PlanId } from './plans'
 import { PRE_END_OPTIONS, type PreEndMinutes } from './schedule'
+import { kgSchema } from './weights'
 
 // Contrato de la API compartido por cliente y servidor.
 // Todas las fechas viajan como milisegundos UTC (number).
@@ -58,6 +59,7 @@ export const updateSettingsSchema = z
     notifyMilestones: z.boolean(),
     reminderEnabled: z.boolean(),
     reminderTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora no válida (HH:MM)'),
+    weightGoalKg: kgSchema.nullable(),
   })
   .partial()
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>
@@ -124,6 +126,7 @@ export type SettingsDto = {
   reminderEnabled: boolean
   /** Hora local 'HH:MM' del recordatorio diario. */
   reminderTime: string
+  weightGoalKg: number | null
 }
 
 export type MeDto = { user: UserDto; settings: SettingsDto }

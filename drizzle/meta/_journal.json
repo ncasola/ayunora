@@ -15,6 +15,13 @@
       "when": 1793883185642,
       "tag": "0001_notification_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793887112834,
+      "tag": "0002_weights",
+      "breakpoints": true
     }
   ]
 }

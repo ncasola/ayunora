@@ -5,10 +5,10 @@ import { Button } from './components/ui'
 import { errorMessage } from './lib/api'
 import { useMe } from './lib/queries'
 import { LoginScreen, RegisterScreen } from './screens/Auth'
-import { ComingSoon } from './screens/ComingSoon'
 import { HistoryScreen } from './screens/History'
 import { SettingsScreen } from './screens/Settings'
 import { TimerScreen } from './screens/Timer'
+import { WeightScreen } from './screens/Weight'
 
 export function App() {
   const me = useMe()
@@ -39,16 +39,7 @@ export function App() {
         <Routes>
           <Route index element={<TimerScreen />} />
           <Route path="historial" element={<HistoryScreen />} />
-          <Route
-            path="peso"
-            element={
-              <ComingSoon
-                title="Peso"
-                emoji="⚖️"
-                text="Aquí podrás registrar tu peso y ver cómo evoluciona."
-              />
-            }
-          />
+          <Route path="peso" element={<WeightScreen />} />
           <Route path="ajustes" element={<SettingsScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

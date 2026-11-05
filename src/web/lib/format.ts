@@ -70,3 +70,17 @@ export function deviceTimeZone(): string {
 export function capitalizeFirst(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
+
+/** Día local de hoy, 'YYYY-MM-DD'. */
+export function todayLocal(now: number): string {
+  return toDateTimeLocal(now).slice(0, 10)
+}
+
+const kgFmt = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+/** «64,2 kg». Con `signed`, «+0,4 kg» o «−2,8 kg». */
+export function formatKg(kg: number, signed = false): string {
+  const abs = kgFmt.format(Math.abs(kg))
+  if (!signed) return `${kgFmt.format(kg)} kg`
+  return `${kg > 0 ? '+' : kg < 0 ? '−' : '±'}${abs} kg`
+}

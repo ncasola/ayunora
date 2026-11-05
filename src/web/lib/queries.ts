@@ -21,6 +21,7 @@ import type {
   UpdateMeInput,
   UpdateSettingsInput,
 } from '../../shared/api'
+import type { PutWeightInput, WeightDto } from '../../shared/weights'
 import { api, ApiError } from './api'
 
 export const keys = {
@@ -28,6 +29,7 @@ export const keys = {
   activeFast: ['fasts', 'active'] as const,
   history: ['fasts', 'history'] as const,
   stats: ['fasts', 'stats'] as const,
+  weights: ['weights'] as const,
 }
 
 /** `null` = sin sesión. */
@@ -205,5 +207,34 @@ export function useDeleteFast() {
       invalidateHistory(qc)
       void qc.invalidateQueries({ queryKey: keys.activeFast })
     },
+  })
+}
+
+// ---- Peso ----
+
+export function useWeights() {
+  return useQuery({ queryKey: keys.weights, queryFn: () => api<WeightDto[]>('/weights') })
+}
+
+export function usePutWeight() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ day, ...input }: PutWeightInput & { day: string }) =>
+      api<WeightDto>(`/weights/${day}`, { method: 'PUT', body: input }),
+    onSuccess: (saved) =>
+      qc.setQueryData<WeightDto[]>(keys.weights, (prev = []) =>
+        [...prev.filter((w) => w.day !== saved.day), saved].sort((a, b) =>
+          a.day.localeCompare(b.day),
+        ),
+      ),
+  })
+}
+
+export function useDeleteWeight() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (day: string) => api(`/weights/${day}`, { method: 'DELETE' }),
+    onSuccess: (_res, day) =>
+      qc.setQueryData<WeightDto[]>(keys.weights, (prev = []) => prev.filter((w) => w.day !== day)),
   })
 }

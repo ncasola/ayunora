@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ActiveFastDto, FastDto, FastPageDto, MeDto, StatsDto } from '../shared/api'
+import type { WeightDto } from '../shared/weights'
 import type { Db } from './db'
 import { notificationJobs, pushSubscriptions } from './db/schema'
 import { fakeSender, H, INVITE, setup, T0 } from './testing'
@@ -429,5 +430,60 @@ describe('historial (M3)', () => {
     const s = (await (await c.get('/fasts/stats')).json()) as StatsDto
     expect(s).toMatchObject({ totalFasts: 3, currentStreak: 2, bestStreak: 2, goalRate30: 67 })
     expect(s.last7Days).toHaveLength(7)
+  })
+})
+
+describe('peso (M4)', () => {
+  // T0 = 5 nov 2026 20:00 UTC; la usuaria está en Atlantic/Canary (UTC+0): hoy es 2026-11-05.
+  it('crear, sobrescribir el mismo día, listar ordenado y borrar', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    expect((await c.call('PUT', '/weights/2026-11-05', { kg: 64.25 })).status).toBe(200)
+    await c.call('PUT', '/weights/2026-11-01', { kg: 65, note: 'después del finde' })
+    const updated = await c.call('PUT', '/weights/2026-11-05', { kg: 63.9 })
+    expect(await updated.json()).toEqual({ day: '2026-11-05', kg: 63.9, note: null })
+
+    const list = (await (await c.get('/weights')).json()) as WeightDto[]
+    expect(list).toEqual([
+      { day: '2026-11-01', kg: 65, note: 'después del finde' },
+      { day: '2026-11-05', kg: 63.9, note: null },
+    ])
+
+    expect((await c.call('DELETE', '/weights/2026-11-01')).status).toBe(200)
+    expect((await c.call('DELETE', '/weights/2026-11-01')).status).toBe(404)
+    expect((await (await c.get('/weights')).json()) as WeightDto[]).toHaveLength(1)
+  })
+
+  it('redondea a un decimal y valida rango, fecha y futuro', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    expect(await (await c.call('PUT', '/weights/2026-11-05', { kg: 70.04 })).json()).toMatchObject({
+      kg: 70,
+    })
+    expect((await c.call('PUT', '/weights/2026-11-05', { kg: 5 })).status).toBe(400)
+    expect((await c.call('PUT', '/weights/2026-02-30', { kg: 60 })).status).toBe(400)
+    // Mañana se permite (margen de zona horaria); pasado mañana no.
+    expect((await c.call('PUT', '/weights/2026-11-06', { kg: 60 })).status).toBe(200)
+    expect((await c.call('PUT', '/weights/2026-11-07', { kg: 60 })).status).toBe(400)
+  })
+
+  it('cada usuario ve solo su peso', async () => {
+    const { registered } = setup()
+    const ella = await registered('ella@ejemplo.es')
+    const el = await registered('el@ejemplo.es')
+    await ella.call('PUT', '/weights/2026-11-05', { kg: 60 })
+    expect((await (await el.get('/weights')).json()) as WeightDto[]).toEqual([])
+    expect((await el.call('DELETE', '/weights/2026-11-05')).status).toBe(404)
+  })
+
+  it('peso objetivo en ajustes (y se puede quitar)', async () => {
+    const { registered } = setup()
+    const c = await registered()
+    expect(await (await c.patch('/settings', { weightGoalKg: 58.26 })).json()).toMatchObject({
+      weightGoalKg: 58.3,
+    })
+    expect(await (await c.patch('/settings', { weightGoalKg: null })).json()).toMatchObject({
+      weightGoalKg: null,
+    })
   })
 })

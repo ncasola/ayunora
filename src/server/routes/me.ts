@@ -23,6 +23,7 @@ export function toSettingsDto(row: SettingsRow): SettingsDto {
     notifyMilestones: row.notifyMilestones,
     reminderEnabled: row.reminderEnabled,
     reminderTime: row.reminderTime,
+    weightGoalKg: row.weightGoalKg,
   }
 }
 

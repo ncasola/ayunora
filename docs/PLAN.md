@@ -117,12 +117,12 @@ Referencia funcional: [SPEC.md](./SPEC.md).
 
 ## M4 — Peso
 
-- [ ] Tabla `weights` (registro único por usuario y día) y API `GET`, `PUT` y `DELETE`.
-- [ ] UI:
+- [x] Tabla `weights` (registro único por usuario y día) y API `GET`, `PUT` y `DELETE`.
+- [x] UI:
   - Entrada rápida de kg con teclado decimal.
   - Gráfico con rangos de 30 días, 90 días y todo.
   - Variaciones y peso objetivo.
-- [ ] Opcional en el resumen de fin de ayuno: «¿Registrar peso de hoy?».
+- [x] Opcional en el resumen de fin de ayuno: «¿Registrar peso de hoy?».
 
 ## M5 — Pulido y lanzamiento
 

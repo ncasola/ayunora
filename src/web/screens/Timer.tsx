@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import type { FastDto, SettingsDto } from '../../shared/api'
 import { PHASES, phaseAt, type PhaseState } from '../../shared/phases'
 import { goalMinutesFor, PLANS } from '../../shared/plans'
@@ -334,6 +335,7 @@ function FinishedSheet({ fast, onClose }: { fast: FastDto | null; onClose: () =>
   const duration = fast?.endedAt ? fast.endedAt - fast.startedAt : 0
   const goalMinutes = fast?.goalMinutes ?? 0
   const achieved = duration >= goalMinutes * MINUTE
+  const navigate = useNavigate()
   return (
     <Sheet
       open={Boolean(fast?.endedAt)}
@@ -351,9 +353,21 @@ function FinishedSheet({ fast, onClose }: { fast: FastDto | null; onClose: () =>
             : 'Cada ayuno cuenta. ¡El próximo saldrá aún mejor!'}
         </p>
       </div>
-      <Button className="w-full" onClick={onClose}>
-        Cerrar
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button className="w-full" onClick={onClose}>
+          Cerrar
+        </Button>
+        <Button
+          variant="ghost"
+          className="w-full"
+          onClick={() => {
+            onClose()
+            void navigate('/peso')
+          }}
+        >
+          ⚖️ Apuntar el peso de hoy
+        </Button>
+      </div>
     </Sheet>
   )
 }

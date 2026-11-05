@@ -8,6 +8,7 @@ import { authRoutes } from './routes/auth'
 import { fastRoutes } from './routes/fasts'
 import { meRoutes, settingsRoutes } from './routes/me'
 import { pushRoutes } from './routes/push'
+import { weightRoutes } from './routes/weights'
 
 export type { AppDeps } from './deps'
 
@@ -30,6 +31,7 @@ export function createApp(deps: AppDeps) {
     .route('/settings', settingsRoutes(deps))
     .route('/fasts', fastRoutes(deps))
     .route('/push', pushRoutes(deps))
+    .route('/weights', weightRoutes(deps))
 
   app.route('/api', api)
   app.all('/api/*', (c) => apiError(c, 404, 'not_found'))
